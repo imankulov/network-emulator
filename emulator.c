@@ -22,6 +22,7 @@ double markov_p00;
 double markov_p10;
 unsigned fpp;
 unsigned speex_quality;
+pj_bool_t list_codecs;
 em_plc_mode plc_mode;
 
 
@@ -55,6 +56,7 @@ pj_status_t parse_args(int argc, const char *argv[])
     fpp = 1;
     speex_quality = 8;
     plc_mode = EM_PLC_EMPTY;
+    list_codecs = PJ_FALSE;
     while ( i < argc ) {
         const char *arg = argv[i];
         if (!strcmp(arg, "--input-file") || !strcmp(arg, "-i")){
@@ -100,12 +102,16 @@ pj_status_t parse_args(int argc, const char *argv[])
                         goto err;
                 }
             }
+        } else if (!strcmp(arg, "--list-codecs")) {
+            list_codecs = PJ_TRUE;
         } else {
             fprintf(stderr, "Unknown argument: %s\n", arg);
             goto err;
         }
         i++;
     }
+    if (list_codecs)
+        return PJ_SUCCESS;
     if (!input_file || !output_file || !codec_name)
         goto err;
     if (lost_pct && markov_p10){
@@ -121,10 +127,10 @@ err:
     fprintf(stderr, "          -l|--loss <lost_pct>\n");
     fprintf(stderr, "             --p00 <lost_pct>\n");
     fprintf(stderr, "             --p10 <lost_pct>\n");
-    fprintf(stderr, "          -l|--loss <lost_pct>\n");
     fprintf(stderr, "          -f|--fpp <fpp>\n");
     fprintf(stderr, "          -p|--plc empty|repeat|smart|noise\n");
     fprintf(stderr, "          -q|--speex-quality <value>\n");
+    fprintf(stderr, "             --list-codecs\n");
     return 1;
 }
 
@@ -177,6 +183,21 @@ int main(int argc, const char *argv[])
 #endif
     cm = pjmedia_endpt_get_codec_mgr(med_endpt);
     CHECK( (cm ? PJ_SUCCESS : -1) );
+    if (list_codecs) {
+        unsigned codec_count = 128;
+        pjmedia_codec_info codec_info_set[128];
+        int i;
+        CHECK( pjmedia_codec_mgr_enum_codecs(cm, &codec_count, codec_info_set,
+                    NULL));
+        printf("Found %d codecs: \n", codec_count);
+        for (i=0; i<codec_count; i++){
+            pjmedia_codec_info ci = codec_info_set[i];
+            printf(" - %.*s/%u/%u\n",
+                    (int)ci.encoding_name.slen, ci.encoding_name.ptr,
+                    ci.clock_rate, ci.channel_cnt);
+        }
+        exit (0);
+    }
     CHECK (pjmedia_codec_mgr_find_codecs_by_id(cm,
             pj_cstr(&tmp, codec_name), &codec_count, &codec_info, NULL) );
     CHECK (pjmedia_codec_mgr_get_default_param(cm, codec_info, &codec_param));
