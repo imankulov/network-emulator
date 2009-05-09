@@ -4,20 +4,15 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_FPP 10
+#include "markov_port.h"
+#include "plc_port.h"
 
-typedef enum {
-    EM_PLC_EMPTY,
-    EM_PLC_REPEAT,
-    EM_PLC_NOISE,
-    EM_PLC_SMART
-} em_plc_mode;
+#define MAX_FPP 10
 
 
 const char *input_file;
 const char *output_file;
 const char *codec_name;
-double lost_pct;
 double markov_p00;
 double markov_p10;
 unsigned fpp;
@@ -50,7 +45,6 @@ pj_status_t parse_args(int argc, const char *argv[])
     input_file = NULL;
     output_file = NULL;
     codec_name = NULL;
-    lost_pct = 0;
     markov_p00 = 0;
     markov_p10 = 0;
     fpp = 1;
@@ -75,7 +69,7 @@ pj_status_t parse_args(int argc, const char *argv[])
             }
         } else if (!strcmp(arg, "--loss") || !strcmp(arg, "-l")) {
             if (i != argc - 1 ) {
-                lost_pct = atof(argv[++i]);
+                markov_p10 = markov_p00 = atof(argv[++i]);
             }
         } else if (!strcmp(arg, "--p00"))  {
             if (i != argc - 1 ) {
@@ -114,10 +108,6 @@ pj_status_t parse_args(int argc, const char *argv[])
         return PJ_SUCCESS;
     if (!input_file || !output_file || !codec_name)
         goto err;
-    if (lost_pct && markov_p10){
-        fprintf(stderr, "You cannot use markov chain loss parameters (p00, p10) along with --loss option\n");
-        goto err;
-    }
     return  PJ_SUCCESS;
 
 err:
@@ -142,7 +132,8 @@ int main(int argc, const char *argv[])
     pjmedia_codec_mgr *cm;
     pjmedia_codec *codec;
     pjmedia_endpt *med_endpt;
-    pjmedia_port *rec_file_port = NULL, *play_file_port = NULL;
+    pjmedia_port *rec_file_port = NULL, *play_file_port = NULL,
+        *markov_port = NULL, *plc_port = NULL;
     pjmedia_master_port *master_port = NULL;
     pj_status_t status;
     pjmedia_frame pcm_frame, frame, out_frames[MAX_FPP];
@@ -153,6 +144,7 @@ int main(int argc, const char *argv[])
     unsigned codec_count = 1;
     pj_size_t buf_size = 0, real_buf_size = 0;
     int packet_lost = 0;
+    pj_timestamp read_ts;
 
     status = parse_args(argc, argv);
     if (status != PJ_SUCCESS)
@@ -212,11 +204,15 @@ int main(int argc, const char *argv[])
     buf = pj_pool_zalloc(pool, buf_size);
     tmp_buf = pj_pool_zalloc(pool, buf_size/fpp);
     CHECK( ( buf && pcm_buf && tmp_buf ? PJ_SUCCESS : -1) );
-    CHECK (pjmedia_wav_writer_port_create(pool, output_file,
+    CHECK(pjmedia_wav_writer_port_create(pool, output_file,
             play_file_port->info.clock_rate,
             play_file_port->info.channel_count,
             play_file_port->info.samples_per_frame,
             play_file_port->info.bits_per_sample, 0, 0, &rec_file_port));
+    CHECK(pjmedia_plc_port_create(pool, rec_file_port, codec, fpp, plc_mode,
+                &plc_port));
+    CHECK(pjmedia_markov_port_create(pool, plc_port, markov_p10,
+                markov_p00, &markov_port));
     #if 0
     status = pjmedia_master_port_create(pool, play_file_port, rec_file_port,
             0, &master_port);
@@ -226,74 +222,23 @@ int main(int argc, const char *argv[])
     }
     status = pjmedia_master_port_destroy(master_port, PJ_TRUE);
     #endif
+    read_ts.u64 = 0;
     for(;;){
         int i;
         unsigned cnt = MAX_FPP;
         double lost_threshold = 0;
-        pj_timestamp ts;
-        ts.u64 = 0;
 
         pcm_frame.buf = pcm_buf;
         pcm_frame.size = buf_size;
         status = pjmedia_port_get_frame(play_file_port, &pcm_frame);
         if (status != PJ_SUCCESS || pcm_frame.type == PJMEDIA_FRAME_TYPE_NONE) break;
+        pcm_frame.timestamp.u64 = read_ts.u64;
         frame.buf = buf;
         frame.size = buf_size;
         CHECK (codec->op->encode(codec, &pcm_frame, buf_size, &frame));
 
-        if (lost_pct){
-            lost_threshold = lost_pct;
-        } else if (markov_p10) {
-            lost_threshold = packet_lost ? markov_p00 : markov_p10;
-        }
-        if ((double)(pj_rand() % 100) < lost_threshold) {
-            packet_lost = 1;
-            switch (plc_mode) {
-                case EM_PLC_SMART:
-                for (i=0; i<fpp; i++){
-                    CHECK (codec->op->recover(codec, buf_size, &pcm_frame));
-                    CHECK (pjmedia_port_put_frame(rec_file_port, &pcm_frame));
-                }
-                break;
-                case EM_PLC_REPEAT:
-                for (i=0; i<fpp; i++){
-                    pcm_frame.size = buf_size / fpp;
-                    pcm_frame.buf = tmp_buf;
-                    CHECK (pjmedia_port_put_frame(rec_file_port, &pcm_frame));
-                }
-                break;
-                case EM_PLC_NOISE:
-                for (i=0; i<fpp; i++){
-                    int j=0;
-                    pcm_frame.size = buf_size / fpp;
-                    pcm_frame.buf = pcm_buf;
-                    for  (j=0; j<pcm_frame.size; j++)
-                        ((char*)pcm_buf)[j] = ((char)pj_rand()) >> 5;
-                    CHECK (pjmedia_port_put_frame(rec_file_port, &pcm_frame));
-                }
-                default:
-                for (i=0; i<fpp; i++){
-                    pcm_frame.size = buf_size / fpp;
-                    pcm_frame.buf = pcm_buf;
-                    pj_bzero(pcm_buf, pcm_frame.size);
-                    CHECK (pjmedia_port_put_frame(rec_file_port, &pcm_frame));
-                }
-            }
-        } else {
-            packet_lost = 0;
-            CHECK (codec->op->parse(codec, buf, frame.size, &ts, &cnt,
-                    out_frames));
-            for (i=0; i<cnt; i++){
-                pcm_frame.buf = pcm_buf;
-                pcm_frame.size = buf_size;
-                codec->op->decode(codec, &out_frames[i], buf_size, &pcm_frame);
-                CHECK (pjmedia_port_put_frame(rec_file_port, &pcm_frame));
-                if (i == cnt - 1 )
-                    pj_memcpy(tmp_buf, pcm_buf, buf_size/fpp);
-                if (status != PJ_SUCCESS)
-                    break;
-            }
-        }
+        CHECK(pjmedia_port_put_frame(markov_port, &frame));
+        read_ts.u64 += 1e6 * play_file_port->info.samples_per_frame / play_file_port->info.clock_rate;
     }
     pjmedia_port_destroy(play_file_port);
     pjmedia_port_destroy(rec_file_port);
