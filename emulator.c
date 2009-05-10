@@ -204,6 +204,9 @@ int main(int argc, const char *argv[])
     CHECK (pjmedia_codec_mgr_find_codecs_by_id(cm,
             pj_cstr(&tmp, codec_name), &codec_count, &codec_info, NULL) );
     CHECK (pjmedia_codec_mgr_get_default_param(cm, codec_info, &codec_param));
+    codec_param.setting.vad = 0;
+    codec_param.setting.cng = 0;
+
     CHECK (pjmedia_codec_mgr_alloc_codec(cm, codec_info, &codec));
     CHECK (codec->op->init(codec, pool) );
     CHECK (codec->op->open(codec, &codec_param));
