@@ -41,7 +41,7 @@ PJ_DECL(pj_status_t) pjmedia_plc_port_create(pj_pool_t *pool,
 			   dn_port->info.clock_rate,
 			   dn_port->info.channel_count,
 			   dn_port->info.bits_per_sample,
-			   dn_port->info.samples_per_frame);
+			   dn_port->info.samples_per_frame*fpp);
 
     /* More init */
     plcp->dn_port = dn_port;
@@ -76,6 +76,7 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
             case EM_PLC_SMART:
             for (i=0; i<plcp->fpp; i++){
                 status = plcp->codec->op->recover(plcp->codec, BUF_SIZE, &plcp->frame);
+                plcp->frame.timestamp.u64 = 0;
                 if (status != PJ_SUCCESS) return status;
                 status = pjmedia_port_put_frame(plcp->dn_port, &plcp->frame);
                 if (status != PJ_SUCCESS) return status;
@@ -83,6 +84,7 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
             break;
             case EM_PLC_REPEAT:
             for (i=0; i<plcp->fpp; i++){
+                plcp->frame.timestamp.u64 = 0;
                 status = pjmedia_port_put_frame(plcp->dn_port, &plcp->frame);
                 if (status != PJ_SUCCESS) return status;
             }
@@ -90,8 +92,9 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
             case EM_PLC_NOISE:
             for (i=0; i<plcp->fpp; i++){
                 int j=0;
-                plcp->frame.size = plcp->dn_port->info.bytes_per_frame / plcp->fpp;
+                plcp->frame.size = plcp->dn_port->info.bytes_per_frame;
                 plcp->frame.type = PJMEDIA_FRAME_TYPE_AUDIO;
+                plcp->frame.timestamp.u64 = 0;
                 for  (j=0; j<plcp->frame.size; j++)
                     ((char*)plcp->frame.buf)[j] = ((char)pj_rand()) >> 5;
                 status = pjmedia_port_put_frame(plcp->dn_port, &plcp->frame);
@@ -99,8 +102,9 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
             }
             default:
             for (i=0; i<plcp->fpp; i++){
-                plcp->frame.size = plcp->dn_port->info.bytes_per_frame / plcp->fpp;
+                plcp->frame.size = plcp->dn_port->info.bytes_per_frame;
                 plcp->frame.type = PJMEDIA_FRAME_TYPE_AUDIO;
+                plcp->frame.timestamp.u64 = 0;
                 pj_bzero(plcp->frame.buf, plcp->frame.size);
                 status = pjmedia_port_put_frame(plcp->dn_port, &plcp->frame);
             }
@@ -138,6 +142,3 @@ static pj_status_t plc_on_destroy(pjmedia_port *this_port)
     PJ_ASSERT_RETURN(this_port->info.signature == SIGNATURE, PJ_EINVAL);
     return PJ_SUCCESS;
 }
-
-
-

@@ -15,7 +15,7 @@ CPPFLAGS= ${CFLAGS}
 
 
 all: emulator
-emulator: emulator.o markov_port.o plc_port.o
+emulator: emulator.o markov_port.o plc_port.o silence_port.o
 %.o: %.c %.h
 clean:
 	rm -f *.o emulator *.html

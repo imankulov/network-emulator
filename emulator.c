@@ -144,7 +144,8 @@ int main(int argc, const char *argv[])
     pjmedia_codec *codec;
     pjmedia_endpt *med_endpt;
     pjmedia_port *rec_file_port = NULL, *play_file_port = NULL,
-        *markov_port = NULL, *plc_port = NULL;
+        *markov_port = NULL, *leaky_bucket_port = NULL,
+        *silence_port = NULL, *plc_port = NULL;
     pjmedia_master_port *master_port = NULL;
     pj_status_t status;
     pjmedia_frame pcm_frame, frame, out_frames[MAX_FPP];
@@ -221,9 +222,10 @@ int main(int argc, const char *argv[])
     CHECK(pjmedia_wav_writer_port_create(pool, output_file,
             play_file_port->info.clock_rate,
             play_file_port->info.channel_count,
-            play_file_port->info.samples_per_frame,
+            play_file_port->info.samples_per_frame/fpp,
             play_file_port->info.bits_per_sample, 0, 0, &rec_file_port));
-    CHECK(pjmedia_plc_port_create(pool, rec_file_port, codec, fpp, plc_mode,
+    CHECK(pjmedia_silence_port_create(pool, rec_file_port, 0, &silence_port));
+    CHECK(pjmedia_plc_port_create(pool, silence_port, codec, fpp, plc_mode,
                 &plc_port));
     CHECK(pjmedia_markov_port_create(pool, plc_port, markov_p10,
                 markov_p00, &markov_port));
@@ -252,7 +254,7 @@ int main(int argc, const char *argv[])
         CHECK (codec->op->encode(codec, &pcm_frame, buf_size, &frame));
 
         CHECK(pjmedia_port_put_frame(markov_port, &frame));
-        read_ts.u64 += 1e6 * play_file_port->info.samples_per_frame / play_file_port->info.clock_rate;
+        read_ts.u64 += play_file_port->info.samples_per_frame;
     }
     pjmedia_port_destroy(play_file_port);
     pjmedia_port_destroy(rec_file_port);
