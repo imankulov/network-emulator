@@ -17,6 +17,7 @@ double markov_p00;
 double markov_p10;
 unsigned fpp;
 unsigned speex_quality;
+unsigned log_level;
 pj_bool_t list_codecs;
 em_plc_mode plc_mode;
 
@@ -49,6 +50,7 @@ pj_status_t parse_args(int argc, const char *argv[])
     markov_p10 = 0;
     fpp = 1;
     speex_quality = 8;
+    log_level = 1;
     plc_mode = EM_PLC_EMPTY;
     list_codecs = PJ_FALSE;
     while ( i < argc ) {
@@ -82,6 +84,14 @@ pj_status_t parse_args(int argc, const char *argv[])
         } else if (!strcmp(arg, "--speex-quality") || !strcmp(arg, "-q")) {
             if (i != argc - 1 ) {
                 speex_quality = atoi(argv[++i]);
+            }
+        } else if (!strcmp(arg, "--log-level")) {
+            if (i != argc - 1 ) {
+                log_level = atoi(argv[++i]);
+                if (log_level < 0 || log_level > 6){
+                    fprintf(stderr, "Log level must be in [0..6]\n");
+                    goto err;
+                }
             }
         } else if (!strcmp(arg, "--plc") || !strcmp(arg, "-p")) {
             if (i != argc - 1 ) {
@@ -120,6 +130,7 @@ err:
     fprintf(stderr, "          -f|--fpp <fpp>\n");
     fprintf(stderr, "          -p|--plc empty|repeat|smart|noise\n");
     fprintf(stderr, "          -q|--speex-quality <value>\n");
+    fprintf(stderr, "             --log-level <0..6>\n");
     fprintf(stderr, "             --list-codecs\n");
     return 1;
 }
@@ -149,7 +160,7 @@ int main(int argc, const char *argv[])
     status = parse_args(argc, argv);
     if (status != PJ_SUCCESS)
         return status;
-    pj_log_set_level(1);
+    pj_log_set_level(log_level);
     status = pj_init();
     pj_caching_pool_init(&cp, &pj_pool_factory_default_policy, 0);
     pool = pj_pool_create(&cp.factory, "emulator", 4000, 4000, NULL);

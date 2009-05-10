@@ -36,6 +36,9 @@ Command-line options
  - `-f|--fpp <fpp>` -- packetization coefficient (number of codec frames per one RTP packet)
  - `-p|--plc empty|repeat|smart|noise` -- PLC algorithm (see below)
  - `-q|--speex-quality <value>` -- Speex quality (0-10) (works with speex algorithm only obviously)
+ - `   --log-level <0..6>` -- Log level where 0 means "log nothing" and 6 means  "log everything"
+
+
 
 
 Packet loss concealment algorithms
