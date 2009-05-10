@@ -6,6 +6,8 @@
 
 #include "markov_port.h"
 #include "plc_port.h"
+#include "silence_port.h"
+#include "leaky_bucket_port.h"
 
 #define MAX_FPP 10
 
@@ -20,6 +22,9 @@ unsigned speex_quality;
 unsigned log_level;
 pj_bool_t list_codecs;
 em_plc_mode plc_mode;
+pj_size_t bucket_size;
+unsigned sent_rate;
+pj_bool_t show_stats;
 
 
 static void err(const char *op, pj_status_t status)
@@ -53,6 +58,9 @@ pj_status_t parse_args(int argc, const char *argv[])
     log_level = 1;
     plc_mode = EM_PLC_EMPTY;
     list_codecs = PJ_FALSE;
+    bucket_size = 50; /* 1s */
+    sent_rate = 16; /* 10 times more than needed */
+    show_stats = PJ_FALSE;
     while ( i < argc ) {
         const char *arg = argv[i];
         if (!strcmp(arg, "--input-file") || !strcmp(arg, "-i")){
@@ -85,6 +93,14 @@ pj_status_t parse_args(int argc, const char *argv[])
             if (i != argc - 1 ) {
                 speex_quality = atoi(argv[++i]);
             }
+        } else if (!strcmp(arg, "--bucket-size")) {
+            if (i != argc - 1 ) {
+                bucket_size = atoi(argv[++i]);
+            }
+        } else if (!strcmp(arg, "--sent-rate")) {
+            if (i != argc - 1 ) {
+                sent_rate = atoi(argv[++i]);
+            }
         } else if (!strcmp(arg, "--log-level")) {
             if (i != argc - 1 ) {
                 log_level = atoi(argv[++i]);
@@ -106,6 +122,8 @@ pj_status_t parse_args(int argc, const char *argv[])
                         goto err;
                 }
             }
+        } else if (!strcmp(arg, "--show-stats")) {
+            show_stats = PJ_TRUE;
         } else if (!strcmp(arg, "--list-codecs")) {
             list_codecs = PJ_TRUE;
         } else {
@@ -131,7 +149,11 @@ err:
     fprintf(stderr, "          -p|--plc empty|repeat|smart|noise\n");
     fprintf(stderr, "          -q|--speex-quality <value>\n");
     fprintf(stderr, "             --log-level <0..6>\n");
-    fprintf(stderr, "             --list-codecs\n");
+    fprintf(stderr, "             --bucket-size <n>\n");
+    fprintf(stderr, "             --sent-rate <n>\n");
+    fprintf(stderr, "             --show-stats\n");
+    fprintf(stderr, "OR                       \n");
+    fprintf(stderr, "       %s --list-codecs\n", argv[0]);
     return 1;
 }
 
@@ -227,7 +249,9 @@ int main(int argc, const char *argv[])
     CHECK(pjmedia_silence_port_create(pool, rec_file_port, 0, &silence_port));
     CHECK(pjmedia_plc_port_create(pool, silence_port, codec, fpp, plc_mode,
                 &plc_port));
-    CHECK(pjmedia_markov_port_create(pool, plc_port, markov_p10,
+    CHECK(pjmedia_leaky_bucket_port_create(&cp.factory, plc_port, bucket_size,
+                sent_rate, &leaky_bucket_port));
+    CHECK(pjmedia_markov_port_create(pool, leaky_bucket_port, markov_p10,
                 markov_p00, &markov_port));
     #if 0
     status = pjmedia_master_port_create(pool, play_file_port, rec_file_port,
@@ -257,5 +281,21 @@ int main(int argc, const char *argv[])
         read_ts.u64 += play_file_port->info.samples_per_frame;
     }
     pjmedia_port_destroy(play_file_port);
+    pjmedia_port_destroy(markov_port);
+    pjmedia_port_destroy(leaky_bucket_port);
+    if (show_stats){
+        em_plc_statistics stats;
+        pjmedia_plc_port_get_statistics(plc_port, &stats);
+        printf(
+                "Emulation statistics\n"
+                "  total packets sent: %u\n"
+                "        packets lost: %u\n"
+                "    packets received: %u\n"
+                "        loss percent: %.2f\n",
+            stats.total, stats.lost, stats.received,
+            100.0 * stats.lost/stats.total);
+    }
+    pjmedia_port_destroy(plc_port);
+    pjmedia_port_destroy(silence_port);
     pjmedia_port_destroy(rec_file_port);
 }

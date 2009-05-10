@@ -13,6 +13,7 @@ struct plc_port
     em_plc_mode       plc_mode;
     pjmedia_frame     frame;
     void             *frame_buf;
+    em_plc_statistics stats;
 };
 
 
@@ -53,10 +54,24 @@ PJ_DECL(pj_status_t) pjmedia_plc_port_create(pj_pool_t *pool,
     plcp->base.on_destroy = &plc_on_destroy;
     plcp->frame.type = PJMEDIA_FRAME_TYPE_NONE;
     plcp->frame.buf = plcp->frame_buf;
+    plcp->stats.received = 0;
+    plcp->stats.lost = 0;
+    plcp->stats.total = 0;
 
     /* Done */
     *p_port = &plcp->base;
 
+    return PJ_SUCCESS;
+}
+
+
+
+PJ_DEF(pj_status_t) pjmedia_plc_port_get_statistics(const pjmedia_port *port,
+        em_plc_statistics *stats)
+{
+    struct plc_port *plcp = (struct plc_port*)port;
+    PJ_ASSERT_RETURN(port->info.signature == SIGNATURE, PJ_EINVAL);
+    pj_memcpy(stats, &plcp->stats, sizeof(em_plc_statistics));
     return PJ_SUCCESS;
 }
 
@@ -109,6 +124,7 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
                 status = pjmedia_port_put_frame(plcp->dn_port, &plcp->frame);
             }
         }
+        plcp->stats.lost++;
     } else {
         unsigned cnt = MAX_FPP;
         pjmedia_frame out_frames[MAX_FPP];
@@ -121,7 +137,9 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
             status = pjmedia_port_put_frame(plcp->dn_port, &plcp->frame);
             if (status != PJ_SUCCESS) return status;
         }
+        plcp->stats.received++;
     }
+    plcp->stats.total++;
     return PJ_SUCCESS;
 }
 
