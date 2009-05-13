@@ -13,7 +13,7 @@ struct leaky_bucket_port
     pjmedia_port	   base;
     pjmedia_port	  *dn_port;
     pj_size_t          bucket_size;
-    unsigned           sent_rate;
+    unsigned           sent_delay;
     struct leaky_bucket_item *first_item;/* first item to be pushed to dn_port */
     struct leaky_bucket_item *last_item; /* last item to be pushed to dn_port */
     pj_timestamp       last_ts;   /* timestamp when latest packet in the queue should be pushed */
@@ -31,7 +31,8 @@ static pj_status_t lb_on_destroy(pjmedia_port *this_port);
 
 PJ_DEF(pj_status_t) pjmedia_leaky_bucket_port_create(
         pj_pool_factory *pool_factory, pjmedia_port *dn_port,
-        pj_size_t bucket_size, unsigned sent_rate, pjmedia_port **p_port)
+        pj_size_t bucket_size, unsigned sent_delay, unsigned bits_per_second,
+        unsigned packets_per_second, pjmedia_port **p_port)
 {
     const pj_str_t leaky_bucket = { "leaky", 5 };
     struct leaky_bucket_port *lb;
@@ -62,9 +63,29 @@ PJ_DEF(pj_status_t) pjmedia_leaky_bucket_port_create(
     lb->base.put_frame = &lb_put_frame;
     lb->base.on_destroy = &lb_on_destroy;
     lb->bucket_size = bucket_size;
-    lb->sent_rate = sent_rate;
     lb->pool = pool;
     lb->last_ts.u64 = 0;
+
+    /* get a sent rate */
+    if (sent_delay > 0){
+        double sent_delay_seconds = (double)sent_delay / lb->base.info.clock_rate;
+        double seconds_per_packet = 1.0/lb->base.info.clock_rate * lb->base.info.samples_per_frame;
+        double expected_loss_rate = 0;
+        lb->sent_delay = sent_delay;
+    } else if (packets_per_second > 0) {
+        lb->sent_delay = (unsigned) ((double)lb->base.info.clock_rate / \
+                packets_per_second);
+    } else if (bits_per_second > 0) {
+        return PJ_ENOTSUP;
+        /*
+        unsigned packet_size = (40 + lb->base.info.bytes_per_frame ) * 8;
+        lb->sent_delay = dn_port->info.samples_per_frame * \
+                       bits_per_second / packet_size;
+        */
+    }
+    PJ_LOG(5, (THIS_FILE, "Leaky bucket port created: bps=%u pps=%u "
+                "sent_delay=%u bucket_size=%u", bits_per_second,
+                packets_per_second, lb->sent_delay, bucket_size));
 
     /* Done */
     *p_port = &lb->base;
@@ -134,10 +155,10 @@ static pj_status_t lb_put_frame( pjmedia_port *this_port,
     if (frame->type == PJMEDIA_FRAME_TYPE_AUDIO ) {
         if (lb->bucket_size > lb->items){
             void *buf;
-            if ( lb->last_ts.u64 + lb->sent_rate < item->frame.timestamp.u64  ) {
+            if ( lb->last_ts.u64 + lb->sent_delay < item->frame.timestamp.u64  ) {
                 lb->last_ts.u64 = item->frame.timestamp.u64;
             } else {
-                lb->last_ts.u64 += lb->sent_rate;
+                lb->last_ts.u64 += lb->sent_delay;
                 item->frame.timestamp.u64 = lb->last_ts.u64;
             }
             buf = pj_pool_zalloc(lb->pool, frame->size);

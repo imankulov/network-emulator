@@ -23,7 +23,9 @@ unsigned log_level;
 pj_bool_t list_codecs;
 em_plc_mode plc_mode;
 pj_size_t bucket_size;
-unsigned sent_rate;
+unsigned sent_delay;
+unsigned bits_per_second;
+unsigned packets_per_second;
 pj_bool_t show_stats;
 
 
@@ -59,7 +61,9 @@ pj_status_t parse_args(int argc, const char *argv[])
     plc_mode = EM_PLC_EMPTY;
     list_codecs = PJ_FALSE;
     bucket_size = 50; /* 1s */
-    sent_rate = 16; /* 10 times more than needed */
+    sent_delay = 16; /* 10 times more than needed */
+    bits_per_second = 0;
+    packets_per_second = 0;
     show_stats = PJ_FALSE;
     while ( i < argc ) {
         const char *arg = argv[i];
@@ -97,9 +101,33 @@ pj_status_t parse_args(int argc, const char *argv[])
             if (i != argc - 1 ) {
                 bucket_size = atoi(argv[++i]);
             }
-        } else if (!strcmp(arg, "--sent-rate")) {
+        } else if (!strcmp(arg, "--sent-delay")) {
             if (i != argc - 1 ) {
-                sent_rate = atoi(argv[++i]);
+                sent_delay = atoi(argv[++i]);
+                bits_per_second = 0;
+                packets_per_second = 0;
+            }
+        } else if (!strcmp(arg, "--bandwidth") || !strcmp(arg, "--bw")) {
+            if (i != argc - 1 ) {
+                const char *delay = argv[++i];
+                int rlen = strlen(delay);
+                if (rlen > 3 && strcmp(&delay[rlen-3], "bps") == 0) {
+                    bits_per_second = atoi(delay);
+                    packets_per_second = 0;
+                    sent_delay = 0;
+                    fprintf(stderr, "Setting bandwidth in bps is not yet "
+                            "implemented, sorry\n");
+                    goto err;
+
+                } else if (rlen > 3 && strcmp(&delay[rlen-3], "pps") == 0) {
+                    packets_per_second = atoi(delay);
+                    sent_delay = 0;
+                    bits_per_second = 0;
+                } else {
+                    fprintf(stderr, "Bandwidth value must ends with "
+                            "\"bps\" or \"pps\" \n");
+                    goto err;
+                }
             }
         } else if (!strcmp(arg, "--log-level")) {
             if (i != argc - 1 ) {
@@ -150,7 +178,8 @@ err:
     fprintf(stderr, "          -q|--speex-quality <value>\n");
     fprintf(stderr, "             --log-level <0..6>\n");
     fprintf(stderr, "             --bucket-size <n>\n");
-    fprintf(stderr, "             --sent-rate <n>\n");
+    fprintf(stderr, "             --sent-delay <n>\n");
+    fprintf(stderr, "        --bw|--bandwidth Abps|Bpps\n");
     fprintf(stderr, "             --show-stats\n");
     fprintf(stderr, "OR                       \n");
     fprintf(stderr, "       %s --list-codecs\n", argv[0]);
@@ -250,7 +279,7 @@ int main(int argc, const char *argv[])
     CHECK(pjmedia_plc_port_create(pool, silence_port, codec, fpp, plc_mode,
                 &plc_port));
     CHECK(pjmedia_leaky_bucket_port_create(&cp.factory, plc_port, bucket_size,
-                sent_rate, &leaky_bucket_port));
+                sent_delay, bits_per_second, packets_per_second, &leaky_bucket_port));
     CHECK(pjmedia_markov_port_create(pool, leaky_bucket_port, markov_p10,
                 markov_p00, &markov_port));
     #if 0
