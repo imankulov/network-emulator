@@ -13,9 +13,10 @@ struct leaky_bucket_port
     pjmedia_port	   base;
     pjmedia_port	  *dn_port;
     pj_size_t          bucket_size;
-    unsigned           sent_delay;
-    struct leaky_bucket_item *first_item;/* first item to be pushed to dn_port */
-    struct leaky_bucket_item *last_item; /* last item to be pushed to dn_port */
+    unsigned           sent_delay;        /* sent delay or bits per second:       */
+    unsigned           bits_per_second;   /* only one of these option must be set */
+    struct leaky_bucket_item *first_item; /* first item to be pushed to dn_port   */
+    struct leaky_bucket_item *last_item;  /* last item to be pushed to dn_port    */
     pj_timestamp       last_ts;   /* timestamp when latest packet in the queue should be pushed */
     pj_size_t          items;     /* number of non-empty items in the bucket */
     pj_pool_t         *pool;
@@ -68,20 +69,12 @@ PJ_DEF(pj_status_t) pjmedia_leaky_bucket_port_create(
 
     /* get a sent rate */
     if (sent_delay > 0){
-        double sent_delay_seconds = (double)sent_delay / lb->base.info.clock_rate;
-        double seconds_per_packet = 1.0/lb->base.info.clock_rate * lb->base.info.samples_per_frame;
-        double expected_loss_rate = 0;
         lb->sent_delay = sent_delay;
     } else if (packets_per_second > 0) {
         lb->sent_delay = (unsigned) ((double)lb->base.info.clock_rate / \
                 packets_per_second);
     } else if (bits_per_second > 0) {
-        return PJ_ENOTSUP;
-        /*
-        unsigned packet_size = (40 + lb->base.info.bytes_per_frame ) * 8;
-        lb->sent_delay = dn_port->info.samples_per_frame * \
-                       bits_per_second / packet_size;
-        */
+        lb->bits_per_second = bits_per_second;
     }
     PJ_LOG(5, (THIS_FILE, "Leaky bucket port created: bps=%u pps=%u "
                 "sent_delay=%u bucket_size=%u", bits_per_second,
@@ -155,10 +148,22 @@ static pj_status_t lb_put_frame( pjmedia_port *this_port,
     if (frame->type == PJMEDIA_FRAME_TYPE_AUDIO ) {
         if (lb->bucket_size > lb->items){
             void *buf;
-            if ( lb->last_ts.u64 + lb->sent_delay < item->frame.timestamp.u64  ) {
+            unsigned sent_delay;
+            if (lb->sent_delay) { /* sent delay or pps is set */
+                sent_delay = lb->sent_delay;
+            } else { /* bps is set, compute sent delay on the fly */
+                int hdr_sz = 20 + 8 + 12;
+                sent_delay = 8.0 * (hdr_sz + frame->size) * \
+                    lb->base.info.clock_rate / lb->bits_per_second;
+                PJ_LOG(6, (THIS_FILE, "Sent delay: %u. Pack sz: %u. Samples: %u",
+                            sent_delay, frame->size, lb->base.info.samples_per_frame));
+
+            }
+            /* update timestamps */
+            if ( lb->last_ts.u64 + sent_delay < item->frame.timestamp.u64  ) {
                 lb->last_ts.u64 = item->frame.timestamp.u64;
             } else {
-                lb->last_ts.u64 += lb->sent_delay;
+                lb->last_ts.u64 += sent_delay;
                 item->frame.timestamp.u64 = lb->last_ts.u64;
             }
             buf = pj_pool_zalloc(lb->pool, frame->size);
