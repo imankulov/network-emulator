@@ -24,8 +24,8 @@ pj_bool_t list_codecs;
 em_plc_mode plc_mode;
 pj_size_t bucket_size;
 unsigned sent_delay;
-unsigned bits_per_second;
-unsigned packets_per_second;
+double bits_per_second;
+double packets_per_second;
 pj_bool_t show_stats;
 
 
@@ -112,15 +112,19 @@ pj_status_t parse_args(int argc, const char *argv[])
                 const char *delay = argv[++i];
                 int rlen = strlen(delay);
                 if (rlen > 3 && strcmp(&delay[rlen-3], "bps") == 0) {
-                    bits_per_second = atoi(delay);
+                    bits_per_second = atof(delay);
+                    if (delay[rlen-4] == 'k' || delay[rlen-4] == 'K')
+                        bits_per_second *= 1024;
+                    else if (delay[rlen-4] == 'm' || delay[rlen-4] == 'M')
+                        bits_per_second *= 1024*1024;
                     packets_per_second = 0;
                     sent_delay = 0;
-                    fprintf(stderr, "Setting bandwidth in bps is not yet "
-                            "implemented, sorry\n");
-                    goto err;
-
                 } else if (rlen > 3 && strcmp(&delay[rlen-3], "pps") == 0) {
-                    packets_per_second = atoi(delay);
+                    packets_per_second = atof(delay);
+                    if (delay[rlen-4] == 'k' || delay[rlen-4] == 'K')
+                        packets_per_second *= 1024;
+                    else if (delay[rlen-4] == 'm' || delay[rlen-4] == 'M')
+                        packets_per_second *= 1024*1024;
                     sent_delay = 0;
                     bits_per_second = 0;
                 } else {
@@ -279,7 +283,10 @@ int main(int argc, const char *argv[])
     CHECK(pjmedia_plc_port_create(pool, silence_port, codec, fpp, plc_mode,
                 &plc_port));
     CHECK(pjmedia_leaky_bucket_port_create(&cp.factory, plc_port, bucket_size,
-                sent_delay, bits_per_second, packets_per_second, &leaky_bucket_port));
+                sent_delay,
+                (unsigned)bits_per_second,
+                (unsigned)packets_per_second,
+                &leaky_bucket_port));
     CHECK(pjmedia_markov_port_create(pool, leaky_bucket_port, markov_p10,
                 markov_p00, &markov_port));
     #if 0
