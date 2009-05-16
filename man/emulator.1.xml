@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+                   "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd"
+[
+  <!-- entities files to use -->
+  <!ENTITY % global_entities SYSTEM 'global.entities'>
+  %global_entities;
+]>
+
+
+
+<!-- lifted from troff+man by doclifter -->
+<refentry id='emulator.1'>
+
+<refmeta>
+    <refentrytitle>&E;</refentrytitle>
+    <manvolnum>1</manvolnum>
+</refmeta>
+<refnamediv>
+    <refname>&E;</refname>
+    <refpurpose>utility intended to test how network losses affects speech
+        quality in VoIP-based applications.</refpurpose>
+</refnamediv>
+<!-- body begins here -->
+<refsynopsisdiv>
+
+<cmdsynopsis>
+  <command>&E;</command>
+    <arg choice='plain'>
+        <option>--list-codecs</option>
+    </arg>
+</cmdsynopsis>
+
+<cmdsynopsis>
+  <command>&E;</command>
+    <arg choice='plain'>
+        <group><option>-i</option><option>--input-file</option></group><replaceable>input_file.wav</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <group><option>-o</option><option>--output-file</option></group><replaceable>output_file.wav</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <group><option>-c</option><option>--codec</option></group><replaceable>codec_name</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <group><option>-l</option><option>--loss</option></group><replaceable>lost_pct</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <option>--p00</option><replaceable>lost_pct</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <option>--p10</option><replaceable>lost_pct</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <group><option>-f</option><option>--fpp</option></group><replaceable>frames_per_packet</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <group><option>-p</option><option>--plc</option></group><replaceable>algo</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <group><option>-q</option><option>--speex-quality</option></group><replaceable>value</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <option>--log-level</option><replaceable>level</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <option>--bucket-size</option><replaceable>size</replaceable>
+    </arg>
+    <!--
+    <arg choice='plain'>
+        <option>-sent-delay</option><replaceable>size</replaceable>
+    </arg>
+    -->
+    <arg choice='plain'>
+        <option>--bucket-size</option><replaceable>size</replaceable>
+    </arg>
+    <arg choice='plain'>
+        <group><option>--bw</option><option>--bandwidth</option></group><replaceable>value</replaceable>
+    </arg>
+
+    <arg choice='plain'>
+        <option>--show-stats</option>
+    </arg>
+</cmdsynopsis>
+    
+<cmdsynopsis>
+  <command>&E;</command>
+    <arg choice='plain'>
+        <option>--help</option>
+    </arg>
+</cmdsynopsis>
+
+</refsynopsisdiv>
+
+<refsect1><title>DESCRIPTION</title>
+    <para>
+        <emphasis>&E;</emphasis> is a simple utility intended to test
+        how network losses affects speech quality in VoIP-based applications.
+        Experimenter can set up encoder, channel and decoder options, such as
+        codec type, loss rate, bandwith and one of the packet loss suppression
+        algorithm on the receiver side.
+    </para>
+    <para>
+        &E; consists of three parts. Encoder reads data from input file,
+        encodes it with selected codec, packs data into RTP-packets. Channel
+        obtains packets from encoder, emulates losses and delays and send
+        packets to the next party.  Decoder receives data from channel,
+        performs packet loss concealment and decoding, then stores data into
+        the output file.
+    </para>
+    <para>
+        A few words about channel emulator algorithms. Channel consists of two
+        blocks: <emphasis>random loss emulator</emphasis> and
+        <emphasis>bandwidth limitation emulator</emphasis>. The first can
+        emulate random uncorrelated losses with <option>-l</option> option or
+        losses modelled with markov chain. With the markov chain it's nessesary
+        to define two options: <option>--p10</option> which specifies packet
+        loss probability  (in percent) in the case when previous packet has not
+        be lost, and <option>--p00</option> which specifies the same in the
+        case when previous packet has been lost as well. Bandwith limitation is
+        emulated with leaky bucket algorithm. Implementation receives two
+        options: <option>--bucket-size</option> in packets and
+        <option>--bandwidth</option> in bits per second (bps) or packets per
+        second (pps).
+    </para>
+</refsect1>
+
+<refsect1><title>OPTIONS</title>
+    <para><emphasis>Encoder options</emphasis></para>
+
+    <variablelist>
+        <varlistentry>
+            <term><option>-i</option>, <option>--input-file</option> <replaceable>file.wav</replaceable></term>
+            <listitem><para>
+                Specify input (referenced) file. File must be in .WAV format,
+                and its sampling rate must be equal with codec sampling rate
+                (8000 samples per second in most cases).
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>-c</option>, <option>--codec</option> <replaceable>codec</replaceable></term>
+            <listitem><para>
+                    Specify codec name. Allowed codec names must be
+                    displayed with <option>--list-codecs</option> option.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>-f</option>, <option>--fpp</option> <replaceable>1..10</replaceable></term>
+            <listitem><para>
+                    Specify number of encoder frames per one RTP packet.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>-q</option>, <option>--speex-quality</option> <replaceable>0..10</replaceable></term>
+            <listitem><para>
+                    Specify speex encoder quality (obviously this option makes sence only with "speex" codec).
+            </para></listitem>
+        </varlistentry>
+    </variablelist>
+
+    <para><emphasis>Channel options</emphasis></para>
+
+    <variablelist>
+        <varlistentry>
+            <term><option>-l</option>, <option>--loss</option> <replaceable>loss_pct</replaceable></term>
+            <listitem><para>
+                    Specify channel loss rate (floating number from 0 to 100). Default value is 0.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>--p00</option> <replaceable>loss_pct</replaceable></term>
+            <listitem><para>
+                    Specify p00 parameter of the markov chain loss model (floating number from 0 to 100). Default value is 0.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>--p10</option> <replaceable>loss_pct</replaceable></term>
+            <listitem><para>
+                    Specify p10 parameter of the markov chain loss model (floating number from 0 to 100). Default value is 0.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>--bucket-size</option> <replaceable>N</replaceable></term>
+            <listitem><para>
+                    Specify bucket size in the leaky bucket traffic shaping
+                    model.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+           <term><option>--bw</option>, <option>--bandwidth</option> <replaceable>XXbps|YYpps</replaceable></term>
+            <listitem><para>
+                    Specify bandwidth in the leaky bucket traffic shaping
+                    model. Note that full size of the one RTP packet consists
+                    of these addends: IP header size (20 bytes), UDP header
+                    size (8 bytes), RTP header size (12 bytes) and payload size
+                    itself.
+            </para></listitem>
+        </varlistentry>
+     </variablelist>
+
+
+    <para><emphasis>Decoder options</emphasis></para>
+    
+    <variablelist>
+        <varlistentry>
+            <term><option>-p</option>, <option>--plc</option> empty|repeat|smart|noise</term>
+            <listitem><para>
+                    Specify packet loss concealment algorithm. Allowed values
+                    are:</para>
+                <para><simplelist>
+                        <member><emphasis>empty</emphasis>: lost frames replaced with empty ones;</member>
+                        <member><emphasis>repeat</emphasis>: lost frames replaced with last received frame;</member>
+                        <member><emphasis>smart</emphasis>: PLC based on WSOLA algorithm or built-in speex PLC methods for Speex;</member>
+                        <member><emphasis>noice</emphasis>: lost frames replaced with white noise.</member>
+                </simplelist>
+            </para></listitem>
+       </varlistentry>
+       <varlistentry>
+            <term><option>-o</option>, <option>--output-file</option> <replaceable>file.wav</replaceable></term>
+            <listitem><para>
+                    Specify output (degraded) file.
+            </para></listitem>
+        </varlistentry>
+
+    </variablelist>
+
+    <para><emphasis>Miscellaneous options</emphasis></para>
+
+    <variablelist>
+        <varlistentry>
+            <term><option>--show-stats</option></term>
+            <listitem><para>
+                    Display short emulation statistics: total packets sent,
+                    packets lost, packets received and the rate of lost packets
+                    during current emulation.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>--log-level</option> 0..6</term>
+            <listitem><para>
+                    Define log level verbosity. Zero means &quot;display
+                    nothing&quot;, six means &quot;push detailed log on the stdout&quot;.
+            </para></listitem>
+        </varlistentry>
+
+    </variablelist>
+
+
+</refsect1>
+
+<refsect1><title>EXAMPLES</title>
+<para>Get the output signal in the "real channel" with short stats at the end of emulation</para>
+<programlisting>
+$ emulator --input-file i.wav --codec speex/8000 --speex-quality 8 --fpp 8 \
+>   --loss 5 --bw 4.9kbps --bucket-size 10 \
+>   --plc smart --output-file o.wav --show-stats
+Emulation statistics
+  total packets sent: 63
+        packets lost: 35
+    packets received: 28
+        loss percent: 55.56
+</programlisting>
+</refsect1>
+
+<refsect1><title>FILES</title>
+<para>nothing special is used</para>
+</refsect1>
+
+<refsect1><title>AUTHOR</title>
+<para>Roman Imankulov <email>roman@netangels.ru</email></para>
+</refsect1>
+
+<refsect1><title>SEE ALSO</title>
+<para><citerefentry><refentrytitle>sox</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+<citerefentry><refentrytitle>speexenc</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+<citerefentry><refentrytitle>speexdec</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+</para>
+</refsect1>
+</refentry>

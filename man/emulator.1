@@ -1,0 +1,170 @@
+'\" -*- coding: us-ascii -*-
+.if \n(.g .ds T< \\FC
+.if \n(.g .ds T> \\F[\n[.fam]]
+.de URL
+\\$2 \(la\\$1\(ra\\$3
+..
+.if \n(.g .mso www.tmac
+.TH emulator 1 "16 May 2009" "" ""
+.SH NAME
+emulator \- utility intended to test how network losses affects speech quality in VoIP-based applications.
+.SH SYNOPSIS
+'nh
+.fi
+.ad l
+\fBemulator\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+\fB--list-codecs\fR
+'in \n(.iu-\nxu
+.ad b
+'hy
+'nh
+.fi
+.ad l
+\fBemulator\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+[-i|--input-file] \fIinput_file.wav\fR
+[-o|--output-file] \fIoutput_file.wav\fR
+[-c|--codec] \fIcodec_name\fR
+[-l|--loss] \fIlost_pct\fR
+\fB--p00\fR \fIlost_pct\fR
+\fB--p10\fR \fIlost_pct\fR
+[-f|--fpp] \fIframes_per_packet\fR
+[-p|--plc] \fIalgo\fR
+[-q|--speex-quality] \fIvalue\fR
+\fB--log-level\fR \fIlevel\fR
+\fB--bucket-size\fR \fIsize\fR
+\fB--bucket-size\fR \fIsize\fR
+[--bw|--bandwidth] \fIvalue\fR
+\fB--show-stats\fR
+'in \n(.iu-\nxu
+.ad b
+'hy
+'nh
+.fi
+.ad l
+\fBemulator\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+\fB--help\fR
+'in \n(.iu-\nxu
+.ad b
+'hy
+.SH DESCRIPTION
+\fIemulator\fR is a simple utility intended to test
+how network losses affects speech quality in VoIP-based applications.
+Experimenter can set up encoder, channel and decoder options, such as
+codec type, loss rate, bandwith and one of the packet loss suppression
+algorithm on the receiver side.
+.PP
+emulator consists of three parts. Encoder reads data from input file,
+encodes it with selected codec, packs data into RTP-packets. Channel
+obtains packets from encoder, emulates losses and delays and send
+packets to the next party. Decoder receives data from channel,
+performs packet loss concealment and decoding, then stores data into
+the output file.
+.PP
+A few words about channel emulator algorithms. Channel consists of two
+blocks: \fIrandom loss emulator\fR and
+\fIbandwidth limitation emulator\fR. The first can
+emulate random uncorrelated losses with \*(T<\fB\-l\fR\*(T> option or
+losses modelled with markov chain. With the markov chain it's nessesary
+to define two options: \*(T<\fB\-\-p10\fR\*(T> which specifies packet
+loss probability (in percent) in the case when previous packet has not
+be lost, and \*(T<\fB\-\-p00\fR\*(T> which specifies the same in the
+case when previous packet has been lost as well. Bandwith limitation is
+emulated with leaky bucket algorithm. Implementation receives two
+options: \*(T<\fB\-\-bucket\-size\fR\*(T> in packets and
+\*(T<\fB\-\-bandwidth\fR\*(T> in bits per second (bps) or packets per
+second (pps).
+.SH OPTIONS
+\fIEncoder options\fR
+.TP 
+\*(T<\fB\-i\fR\*(T>, \*(T<\fB\-\-input\-file\fR\*(T> \fIfile.wav\fR
+Specify input (referenced) file. File must be in .WAV format,
+and its sampling rate must be equal with codec sampling rate
+(8000 samples per second in most cases).
+.TP 
+\*(T<\fB\-c\fR\*(T>, \*(T<\fB\-\-codec\fR\*(T> \fIcodec\fR
+Specify codec name. Allowed codec names must be
+displayed with \*(T<\fB\-\-list\-codecs\fR\*(T> option.
+.TP 
+\*(T<\fB\-f\fR\*(T>, \*(T<\fB\-\-fpp\fR\*(T> \fI1..10\fR
+Specify number of encoder frames per one RTP packet.
+.TP 
+\*(T<\fB\-q\fR\*(T>, \*(T<\fB\-\-speex\-quality\fR\*(T> \fI0..10\fR
+Specify speex encoder quality (obviously this option makes sence only with "speex" codec).
+.PP
+\fIChannel options\fR
+.TP 
+\*(T<\fB\-l\fR\*(T>, \*(T<\fB\-\-loss\fR\*(T> \fIloss_pct\fR
+Specify channel loss rate (floating number from 0 to 100). Default value is 0.
+.TP 
+\*(T<\fB\-\-p00\fR\*(T> \fIloss_pct\fR
+Specify p00 parameter of the markov chain loss model (floating number from 0 to 100). Default value is 0.
+.TP 
+\*(T<\fB\-\-p10\fR\*(T> \fIloss_pct\fR
+Specify p10 parameter of the markov chain loss model (floating number from 0 to 100). Default value is 0.
+.TP 
+\*(T<\fB\-\-bucket\-size\fR\*(T> \fIN\fR
+Specify bucket size in the leaky bucket traffic shaping
+model.
+.TP 
+\*(T<\fB\-\-bw\fR\*(T>, \*(T<\fB\-\-bandwidth\fR\*(T> \fIXXbps|YYpps\fR
+Specify bandwidth in the leaky bucket traffic shaping
+model. Note that full size of the one RTP packet consists
+of these addends: IP header size (20 bytes), UDP header
+size (8 bytes), RTP header size (12 bytes) and payload size
+itself.
+.PP
+\fIDecoder options\fR
+.TP 
+\*(T<\fB\-p\fR\*(T>, \*(T<\fB\-\-plc\fR\*(T> empty|repeat|smart|noise
+Specify packet loss concealment algorithm. Allowed values
+are:
+
+\fIempty\fR: lost frames replaced with empty ones;
+.br
+\fIrepeat\fR: lost frames replaced with last received frame;
+.br
+\fIsmart\fR: PLC based on WSOLA algorithm or built-in speex PLC methods for Speex;
+.br
+\fInoice\fR: lost frames replaced with white noise.
+.TP 
+\*(T<\fB\-o\fR\*(T>, \*(T<\fB\-\-output\-file\fR\*(T> \fIfile.wav\fR
+Specify output (degraded) file.
+.PP
+\fIMiscellaneous options\fR
+.TP 
+\*(T<\fB\-\-show\-stats\fR\*(T>
+Display short emulation statistics: total packets sent,
+packets lost, packets received and the rate of lost packets
+during current emulation.
+.TP 
+\*(T<\fB\-\-log\-level\fR\*(T> 0..6
+Define log level verbosity. Zero means "display
+nothing", six means "push detailed log on the stdout".
+.SH EXAMPLES
+Get the output signal in the "real channel" with short stats at the end of emulation
+.PP
+.nf
+\*(T<
+$ emulator \-\-input\-file i.wav \-\-codec speex/8000 \-\-speex\-quality 8 \-\-fpp 8 \e
+>   \-\-loss 5 \-\-bw 4.9kbps \-\-bucket\-size 10 \e
+>   \-\-plc smart \-\-output\-file o.wav \-\-show\-stats
+Emulation statistics
+  total packets sent: 63
+        packets lost: 35
+    packets received: 28
+        loss percent: 55.56
+\*(T>.fi
+.SH FILES
+nothing special is used
+.SH AUTHOR
+Roman Imankulov <\*(T<roman@netangels.ru\*(T>>
+.SH "SEE ALSO"
+\fBsox\fR(1),
+\fBspeexenc\fR(1),
+\fBspeexdec\fR(1),

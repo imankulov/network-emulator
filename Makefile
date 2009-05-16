@@ -18,10 +18,12 @@ all: emulator
 emulator: emulator.o markov_port.o plc_port.o silence_port.o leaky_bucket_port.o
 %.o: %.c %.h
 clean:
-	rm -f *.o emulator *.html
-doc: README.html
+	rm -f *.o emulator *.html emulator.1
+doc: man README.html
+man: 
+	make -C man
 
 %.html: %.md
 	$(MARKDOWN) $< > $@
 
-.PHONY: all clean doc
+.PHONY: all clean doc man
