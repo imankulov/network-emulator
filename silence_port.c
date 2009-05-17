@@ -7,6 +7,7 @@ struct silence_port
     pjmedia_port	  base;
     pjmedia_port	 *dn_port;
     pj_timestamp      last_ts;
+    unsigned          frames;
     pjmedia_circ_buf *buf;
 };
 
@@ -41,6 +42,8 @@ PJ_DEF(pj_status_t) pjmedia_silence_port_create(pj_pool_t *pool,
     sp->base.get_frame = &sp_get_frame;
     sp->base.put_frame = &sp_put_frame;
     sp->base.on_destroy = &sp_on_destroy;
+    sp->frames = 0;
+    sp->last_ts.u64 = 0;
 
     /* create circular buffer */
     if (!buffer_size)
@@ -64,28 +67,41 @@ static pj_status_t sp_put_frame( pjmedia_port *this_port,
     pj_int16_t tmp_buf[frame_size];
     pjmedia_frame tmp_frame;
     pj_status_t status;
-
-    PJ_LOG(6, (THIS_FILE, "frame_size: %u, samples_per_frame: %u", frame_size,
-                samples_per_frame));
+    PJ_LOG(6, (THIS_FILE, "packet: sz=%d ts=%llu",
+                frame->size/sizeof(pj_uint16_t), frame->timestamp.u64));
     PJ_ASSERT_RETURN(this_port->info.signature == SIGNATURE, PJ_EINVAL);
     if (frame->type == PJMEDIA_FRAME_TYPE_NONE ) {
         PJ_LOG(5, (THIS_FILE, "empty frame passed"));
 	    return pjmedia_port_put_frame(sp->dn_port, frame);
     }
 
-    if (frame->timestamp.u64 == 0){
-        PJ_LOG(5, (THIS_FILE, "frame timestamp is unknown, so increment by %d (samples per frame)",
+    if (sp->frames == 0) {
+        PJ_LOG(5, (THIS_FILE, "%u: this is first received frame,  "
+                    "so just update last timestamp with its "
+                    "timestamp + size: %llu + %d",
+                    sp->frames,
+                    frame->timestamp.u64,
                     samples_per_frame));
+        sp->last_ts.u64 = frame->timestamp.u64 + samples_per_frame;
+    } else if (frame->timestamp.u64 == 0){
+        PJ_LOG(5, (THIS_FILE, "%u: frame timestamp is unknown, so increment "
+                    "by %d (samples per frame)", sp->frames, samples_per_frame));
         sp->last_ts.u64 += samples_per_frame;
     } else if (frame->timestamp.u64 < sp->last_ts.u64 ){
-        PJ_LOG(5, (THIS_FILE, "received frame timestamp is lesser than latest timestamp (%u < %u)",
-                    (unsigned)frame->timestamp.u64, (unsigned)sp->last_ts.u64));
+        PJ_LOG(5, (THIS_FILE, "%u: received frame timestamp is lesser than "
+                    "latest timestamp (%llu < %llu)", sp->frames,
+                    frame->timestamp.u64, sp->last_ts.u64));
         sp->last_ts.u64 = frame->timestamp.u64 + samples_per_frame;
     } else if (frame->timestamp.u64 > sp->last_ts.u64){
         unsigned zero_padding_count = frame->timestamp.u64 - sp->last_ts.u64;
         pj_int16_t zero_buf[zero_padding_count];
-        PJ_LOG(5, (THIS_FILE, "received frame timestamp is greater than latest timestamp, "
-                "fill output buffer with %d empty frames", zero_padding_count));
+        PJ_LOG(5, (THIS_FILE, "%u: received frame timestamp is greater than "
+                "latest timestamp (%llu > %llu), fill output buffer with %d "
+                "empty frames",
+                sp->frames,
+                frame->timestamp.u64,
+                sp->last_ts.u64,
+                zero_padding_count));
         pj_bzero(zero_buf, sizeof(zero_buf));
         pjmedia_circ_buf_write(sp->buf, zero_buf, zero_padding_count);
         sp->last_ts.u64 = frame->timestamp.u64 + samples_per_frame;
@@ -95,6 +111,7 @@ static pj_status_t sp_put_frame( pjmedia_port *this_port,
     pjmedia_circ_buf_write(sp->buf, (pj_uint16_t*)frame->buf, frame_size);
     pj_memcpy(&tmp_frame, frame, sizeof(pjmedia_frame));
     tmp_frame.buf = (void*)tmp_buf;
+    sp->frames ++;
 
     /* put everything saved into buffer */
     while (pjmedia_circ_buf_get_len(sp->buf) > frame_size){

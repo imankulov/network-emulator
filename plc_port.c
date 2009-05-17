@@ -83,6 +83,8 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
     int i;
     struct plc_port *plcp = (struct plc_port*)this_port;
     PJ_ASSERT_RETURN(this_port->info.signature == SIGNATURE, PJ_EINVAL);
+    PJ_LOG(6, (THIS_FILE, "packet: sz=%d ts=%llu",
+                frame->size/sizeof(pj_uint16_t), frame->timestamp.u64));
 
     if (frame->type == PJMEDIA_FRAME_TYPE_NONE ) {
         em_plc_mode mode = plcp->frame.type == PJMEDIA_FRAME_TYPE_NONE ? \
