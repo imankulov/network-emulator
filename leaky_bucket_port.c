@@ -19,6 +19,7 @@ struct leaky_bucket_port
     struct leaky_bucket_item *last_item;  /* last item to be pushed to dn_port    */
     pj_timestamp       last_ts;   /* timestamp when latest packet in the queue should be pushed */
     pj_size_t          items;     /* number of non-empty items in the bucket */
+    unsigned           frames;    /* number of frames pass throught */
     pj_pool_t         *pool;
 };
 
@@ -66,6 +67,7 @@ PJ_DEF(pj_status_t) pjmedia_leaky_bucket_port_create(
     lb->bucket_size = bucket_size;
     lb->pool = pool;
     lb->last_ts.u64 = 0;
+    lb->frames = 0;
 
     /* get a sent rate */
     if (sent_delay > 0){
@@ -138,6 +140,8 @@ static pj_status_t lb_put_frame( pjmedia_port *this_port,
             struct leaky_bucket_item);
     PJ_ASSERT_RETURN(this_port->info.signature == SIGNATURE, PJ_EINVAL);
     pj_memcpy(&item->frame, frame, sizeof(pjmedia_frame));
+    PJ_LOG(6, (THIS_FILE, "packet: sz=%d ts=%llu",
+                frame->size/sizeof(pj_uint16_t), frame->timestamp.u64));
 
     /* if frame is not empty, push all previous frames into downstream port  */
     if (frame->type == PJMEDIA_FRAME_TYPE_AUDIO){
@@ -160,7 +164,9 @@ static pj_status_t lb_put_frame( pjmedia_port *this_port,
 
             }
             /* update timestamps */
-            if ( lb->last_ts.u64 + sent_delay < item->frame.timestamp.u64  ) {
+            if (lb->frames == 0){
+                lb->last_ts.u64 = item->frame.timestamp.u64;
+            } else if ( lb->last_ts.u64 + sent_delay < item->frame.timestamp.u64  ) {
                 lb->last_ts.u64 = item->frame.timestamp.u64;
             } else {
                 lb->last_ts.u64 += sent_delay;
@@ -184,6 +190,7 @@ static pj_status_t lb_put_frame( pjmedia_port *this_port,
         pj_list_insert_after(lb->last_item, item);
         lb->last_item = item;
     }
+    lb->frames++;
     return PJ_SUCCESS;
 }
 
