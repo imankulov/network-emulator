@@ -12,6 +12,8 @@
 #define MAX_FPP 10
 
 
+extern char *optarg;
+
 const char *input_file;
 const char *output_file;
 const char *codec_name;
@@ -27,6 +29,49 @@ unsigned sent_delay;
 double bits_per_second;
 double packets_per_second;
 pj_bool_t show_stats;
+
+enum {
+    EM_P00 = 1,
+    EM_P10,
+    EM_BUCKET_SIZE,
+    EM_BANDWIDTH,
+    EM_SENT_DELAY,
+    EM_SHOW_STATS,
+    EM_LOG_LEVEL,
+    EM_LIST_CODECS,
+} option_name;
+
+
+char shortopts[] = "i:c:q:f:l:o:p:";
+const struct pj_getopt_option longopts[] = {
+    /* encoder options */
+    {"input-file", required_argument, NULL, 'i'},
+    {"codec", required_argument, NULL, 'c'},
+    {"speex-quality", required_argument, NULL, 'q'},
+    {"fpp", required_argument, NULL, 'f'},
+
+    /* channel options */
+    {"loss", required_argument, NULL, 'l'},
+    {"p00", required_argument, (int*)&option_name, (int)EM_P00},
+    {"p10", required_argument, (int*)&option_name, (int)EM_P10},
+    {"bucket-size", required_argument, (int*)&option_name, (int)EM_BUCKET_SIZE},
+    {"bw", required_argument, (int*)&option_name, (int)EM_BANDWIDTH},
+    {"bandwidth", required_argument, (int*)&option_name, (int)EM_BANDWIDTH},
+    {"sent-delay", required_argument, (int*)&option_name, (int)EM_SENT_DELAY},
+
+    /* decoder options */
+    {"output-file", required_argument, NULL, 'o'},
+    {"plc", required_argument, NULL, 'p'},
+
+    /* miscellaneous options */
+    {"show-stats", no_argument, (int*)&option_name, (int)EM_SHOW_STATS},
+    {"log-level", required_argument, (int*)&option_name, (int)EM_LOG_LEVEL},
+    {"list-codecs", no_argument, (int*)&option_name, (int)EM_LIST_CODECS},
+
+    /* end */
+    {NULL, 0, NULL, 0},
+};
+
 
 
 static void err(const char *op, pj_status_t status)
@@ -65,104 +110,123 @@ pj_status_t parse_args(int argc, const char *argv[])
     bits_per_second = 0;
     packets_per_second = 0;
     show_stats = PJ_FALSE;
-    while ( i < argc ) {
-        const char *arg = argv[i];
-        if (!strcmp(arg, "--input-file") || !strcmp(arg, "-i")){
-            if (i != argc - 1 ) input_file = argv[++i];
-        } else if (!strcmp(arg, "--output-file") ||  !strcmp(arg, "-o")) {
-            if (i != argc - 1 ) output_file = argv[++i];
-        } else if (!strcmp(arg, "--codec") || !strcmp(arg, "-c")) {
-            if (i != argc - 1 ) codec_name = argv[++i];
-        } else if (!strcmp(arg, "--fpp") || !strcmp(arg, "-f")) {
-            if (i != argc - 1 ){
-                fpp = atoi(argv[++i]);
+
+    int ch;
+    while ( (ch=getopt_long(argc, argv, shortopts, longopts, NULL)) != -1 ) {
+        switch (ch) {
+            case 'i':
+                input_file = strdup(optarg);
+                break;
+            case 'c':
+                codec_name = strdup(optarg);
+                break;
+            case 'q':
+                speex_quality = atoi(optarg);
+                if (speex_quality < 0 || speex_quality > 10){
+                    fprintf(stderr, "speex quality must be between 0 and 10\n");
+                    goto err;
+                }
+                break;
+            case 'f':
+                fpp = atoi(optarg);
                 if (fpp < 1 || fpp > MAX_FPP){
                     fprintf(stderr, "fpp must be between 1 and %d", MAX_FPP);
                     goto err;
                 }
-            }
-        } else if (!strcmp(arg, "--loss") || !strcmp(arg, "-l")) {
-            if (i != argc - 1 ) {
-                markov_p10 = markov_p00 = atof(argv[++i]);
-            }
-        } else if (!strcmp(arg, "--p00"))  {
-            if (i != argc - 1 ) {
-                markov_p00 = atof(argv[++i]);
-            }
-        } else if (!strcmp(arg, "--p10")) {
-            if (i != argc - 1 ) {
-                markov_p10 = atof(argv[++i]);
-            }
-        } else if (!strcmp(arg, "--speex-quality") || !strcmp(arg, "-q")) {
-            if (i != argc - 1 ) {
-                speex_quality = atoi(argv[++i]);
-            }
-        } else if (!strcmp(arg, "--bucket-size")) {
-            if (i != argc - 1 ) {
-                bucket_size = atoi(argv[++i]);
-            }
-        } else if (!strcmp(arg, "--sent-delay")) {
-            if (i != argc - 1 ) {
-                sent_delay = atoi(argv[++i]);
-                bits_per_second = 0;
-                packets_per_second = 0;
-            }
-        } else if (!strcmp(arg, "--bandwidth") || !strcmp(arg, "--bw")) {
-            if (i != argc - 1 ) {
-                const char *delay = argv[++i];
-                int rlen = strlen(delay);
-                if (rlen > 3 && strcmp(&delay[rlen-3], "bps") == 0) {
-                    bits_per_second = atof(delay);
-                    if (delay[rlen-4] == 'k' || delay[rlen-4] == 'K')
-                        bits_per_second *= 1024;
-                    else if (delay[rlen-4] == 'm' || delay[rlen-4] == 'M')
-                        bits_per_second *= 1024*1024;
-                    packets_per_second = 0;
-                    sent_delay = 0;
-                } else if (rlen > 3 && strcmp(&delay[rlen-3], "pps") == 0) {
-                    packets_per_second = atof(delay);
-                    if (delay[rlen-4] == 'k' || delay[rlen-4] == 'K')
-                        packets_per_second *= 1024;
-                    else if (delay[rlen-4] == 'm' || delay[rlen-4] == 'M')
-                        packets_per_second *= 1024*1024;
-                    sent_delay = 0;
-                    bits_per_second = 0;
-                } else {
-                    fprintf(stderr, "Bandwidth value must ends with "
-                            "\"bps\" or \"pps\" \n");
+                break;
+            case 'l':
+                markov_p10 = markov_p00 = atof(optarg);
+                if (markov_p00 < 0 || markov_p00 > 100) {
+                    fprintf(stderr, "loss rate must be between 0 and 100");
                     goto err;
                 }
-            }
-        } else if (!strcmp(arg, "--log-level")) {
-            if (i != argc - 1 ) {
-                log_level = atoi(argv[++i]);
-                if (log_level < 0 || log_level > 6){
-                    fprintf(stderr, "Log level must be in [0..6]\n");
-                    goto err;
-                }
-            }
-        } else if (!strcmp(arg, "--plc") || !strcmp(arg, "-p")) {
-            if (i != argc - 1 ) {
-                const char *plc_s = argv[++i];
-                switch (plc_s[0]){
+                break;
+            case 'o':
+                output_file = strdup(optarg);
+                break;
+            case 'p':
+                switch (optarg[0]){
                     case 'e': plc_mode = EM_PLC_EMPTY; break;
                     case 'r': plc_mode = EM_PLC_REPEAT; break;
                     case 'n': plc_mode = EM_PLC_NOISE; break;
                     case 's': plc_mode = EM_PLC_SMART; break;
                     default:
-                        fprintf(stderr, "Unknown argument for PLC: %s\n", plc_s);
+                        fprintf(stderr, "Unknown argument for PLC: %s\n", optarg);
                         goto err;
                 }
-            }
-        } else if (!strcmp(arg, "--show-stats")) {
-            show_stats = PJ_TRUE;
-        } else if (!strcmp(arg, "--list-codecs")) {
-            list_codecs = PJ_TRUE;
-        } else {
-            fprintf(stderr, "Unknown argument: %s\n", arg);
-            goto err;
+                break;
+            case 0:
+                switch (option_name) {
+                    case EM_P00:
+                        markov_p00 = atof(optarg);
+                        if (markov_p00 < 0 || markov_p00 > 100) {
+                            fprintf(stderr, "loss rate must be between 0 and 100");
+                            goto err;
+                        }
+                        break;
+                    case EM_P10:
+                        markov_p10 = atof(optarg);
+                        if (markov_p10 < 0 || markov_p10 > 100) {
+                            fprintf(stderr, "loss rate must be between 0 and 100");
+                            goto err;
+                        }
+                        break;
+                    case EM_BUCKET_SIZE:
+                        bucket_size = atoi(optarg);
+                        break;
+                    case EM_BANDWIDTH: {
+                        int rlen = strlen(optarg);
+                        if (rlen > 3 && strcmp(&optarg[rlen-3], "bps") == 0) {
+                            bits_per_second = atof(optarg);
+                            if (optarg[rlen-4] == 'k' || optarg[rlen-4] == 'K')
+                                bits_per_second *= 1024;
+                            else if (optarg[rlen-4] == 'm' || optarg[rlen-4] == 'M')
+                                bits_per_second *= 1024*1024;
+                            packets_per_second = 0;
+                            sent_delay = 0;
+                        } else if (rlen > 3 && strcmp(&optarg[rlen-3], "pps") == 0) {
+                            packets_per_second = atof(optarg);
+                            if (optarg[rlen-4] == 'k' || optarg[rlen-4] == 'K')
+                                packets_per_second *= 1024;
+                            else if (optarg[rlen-4] == 'm' || optarg[rlen-4] == 'M')
+                                packets_per_second *= 1024*1024;
+                            sent_delay = 0;
+                            bits_per_second = 0;
+                        } else {
+                            fprintf(stderr, "Bandwidth value must ends with "
+                                    "\"bps\" or \"pps\" \n");
+                            goto err;
+                        }
+                        }
+                        break;
+                    case EM_SENT_DELAY:
+                        sent_delay = atoi(optarg);
+                        bits_per_second = 0;
+                        packets_per_second = 0;
+                        break;
+                    case EM_SHOW_STATS:
+                        show_stats = PJ_TRUE;
+                        break;
+                    case EM_LOG_LEVEL:
+                        log_level = atoi(optarg);
+                        if (log_level < 0 || log_level > 6){
+                            fprintf(stderr, "Log level must be in [0..6]\n");
+                            goto err;
+                        }
+                        break;
+                    case EM_LIST_CODECS:
+                        list_codecs = PJ_TRUE;
+                        break;
+                    default:
+                        fprintf(stderr, "Unknown argument : %d\n", option_name);
+                        goto err;
+                }
+                break;
+            default:
+                fprintf(stderr, "Unknown argument : %c\n",  (char)ch);
+                goto err;
         }
-        i++;
+
     }
     if (list_codecs)
         return PJ_SUCCESS;
