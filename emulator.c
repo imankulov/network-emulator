@@ -331,12 +331,24 @@ int main(int argc, const char *argv[])
     CHECK (pjmedia_codec_mgr_alloc_codec(cm, codec_info, &codec));
     CHECK (codec->op->init(codec, pool) );
     CHECK (codec->op->open(codec, &codec_param));
+    PJ_LOG(5, (THIS_FILE, "created codec: clock_rate=%u, "
+                "frm_ptime=%u, enc_ptime=%u, pcm_bits_per_sample=%u, pt=%u",
+                (unsigned)codec_param.info.frm_ptime,
+                (unsigned)codec_param.info.enc_ptime,
+                (unsigned)codec_param.info.pcm_bits_per_sample,
+                (unsigned)codec_param.info.pt
+               ));
+
     CHECK (pjmedia_wav_player_port_create(pool, input_file,
             codec_param.info.frm_ptime*fpp, PJMEDIA_FILE_NO_LOOP, 0,
             &play_file_port));
     buf_size = play_file_port->info.bytes_per_frame;
     pcm_buf = pj_pool_zalloc(pool, buf_size);
     buf = pj_pool_zalloc(pool, buf_size);
+    PJ_LOG(5, (THIS_FILE, "created buffer with size %u",
+                (unsigned)play_file_port->info.bytes_per_frame
+               ));
+
     tmp_buf = pj_pool_zalloc(pool, buf_size/fpp);
     CHECK( ( buf && pcm_buf && tmp_buf ? PJ_SUCCESS : -1) );
     CHECK(pjmedia_wav_writer_port_create(pool, output_file,
@@ -372,13 +384,15 @@ int main(int argc, const char *argv[])
         pcm_frame.buf = pcm_buf;
         pcm_frame.size = buf_size;
         status = pjmedia_port_get_frame(play_file_port, &pcm_frame);
-        if (status != PJ_SUCCESS || pcm_frame.type == PJMEDIA_FRAME_TYPE_NONE) break;
+        if (status != PJ_SUCCESS || pcm_frame.type == PJMEDIA_FRAME_TYPE_NONE)
+            break;
         pcm_frame.timestamp.u64 = read_ts.u64;
         PJ_LOG(6, (THIS_FILE, "pcm packet: sz=%d ts=%llu",
                 pcm_frame.size/sizeof(pj_uint16_t), pcm_frame.timestamp.u64));
         frame.buf = buf;
         frame.size = buf_size;
         CHECK (codec->op->encode(codec, &pcm_frame, buf_size, &frame));
+        frame.timestamp = pcm_frame.timestamp;
         PJ_LOG(6, (THIS_FILE, "encoded packet: sz=%d ts=%llu",
                 frame.size/sizeof(pj_uint16_t), frame.timestamp.u64));
         CHECK(pjmedia_port_put_frame(markov_port, &frame));
