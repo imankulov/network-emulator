@@ -10,6 +10,7 @@
 #include "leaky_bucket_port.h"
 
 #define MAX_FPP 10
+#define THIS_FILE   "emulator.c"
 
 
 extern char *optarg;
@@ -373,10 +374,13 @@ int main(int argc, const char *argv[])
         status = pjmedia_port_get_frame(play_file_port, &pcm_frame);
         if (status != PJ_SUCCESS || pcm_frame.type == PJMEDIA_FRAME_TYPE_NONE) break;
         pcm_frame.timestamp.u64 = read_ts.u64;
+        PJ_LOG(6, (THIS_FILE, "pcm packet: sz=%d ts=%llu",
+                pcm_frame.size/sizeof(pj_uint16_t), pcm_frame.timestamp.u64));
         frame.buf = buf;
         frame.size = buf_size;
         CHECK (codec->op->encode(codec, &pcm_frame, buf_size, &frame));
-
+        PJ_LOG(6, (THIS_FILE, "encoded packet: sz=%d ts=%llu",
+                frame.size/sizeof(pj_uint16_t), frame.timestamp.u64));
         CHECK(pjmedia_port_put_frame(markov_port, &frame));
         read_ts.u64 += play_file_port->info.samples_per_frame;
     }

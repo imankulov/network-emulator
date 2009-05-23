@@ -1,6 +1,6 @@
 #include "silence_port.h"
 #define SIGNATURE   PJMEDIA_PORT_SIGNATURE('S', 'I', 'L', 'E')
-#define THIS_FILE   "demo.c"
+#define THIS_FILE   "silence_port.c"
 
 struct silence_port
 {

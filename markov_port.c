@@ -61,6 +61,8 @@ static pj_status_t mp_put_frame( pjmedia_port *this_port,
     struct markov_port *mp = (struct markov_port*)this_port;
     double lost_threshold = mp->packet_lost ? mp->p00 : mp->p10;
     PJ_ASSERT_RETURN(this_port->info.signature == SIGNATURE, PJ_EINVAL);
+    PJ_LOG(6, (THIS_FILE, "packet: sz=%d ts=%llu",
+                frame->size/sizeof(pj_uint16_t), frame->timestamp.u64));
     if (frame->type == PJMEDIA_FRAME_TYPE_NONE ) {
 	    return pjmedia_port_put_frame(mp->dn_port, frame);
     }

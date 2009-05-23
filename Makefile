@@ -17,7 +17,7 @@ CPPFLAGS= ${CFLAGS}
 
 
 all: emulator
-install: all
+install: all man
 	install -m 0755 -t $(PREFIX)/bin ./emulator
 	gzip -c ./man/emulator.1 > ./man/emulator.1.gz
 	install -m 0644 -t $(PREFIX)/share/man/man1 ./man/emulator.1.gz
