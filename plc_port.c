@@ -136,6 +136,7 @@ static pj_status_t plc_put_frame( pjmedia_port *this_port,
             status = plcp->codec->op->decode(plcp->codec, &out_frames[i], BUF_SIZE,
                     &plcp->frame);
             if (status != PJ_SUCCESS) return status;
+            plcp->frame.timestamp = out_frames[i].timestamp;
             status = pjmedia_port_put_frame(plcp->dn_port, &plcp->frame);
             if (status != PJ_SUCCESS) return status;
         }
