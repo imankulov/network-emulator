@@ -104,18 +104,25 @@ static pj_status_t sp_put_frame( pjmedia_port *this_port,
                 zero_padding_count));
         pj_bzero(zero_buf, sizeof(zero_buf));
         pjmedia_circ_buf_write(sp->buf, zero_buf, zero_padding_count);
+        PJ_LOG(6, (THIS_FILE, "write in circ buf %u zeros",
+                    zero_padding_count));
         sp->last_ts.u64 = frame->timestamp.u64 + samples_per_frame;
     } else {
         sp->last_ts.u64 += samples_per_frame;
     }
     pjmedia_circ_buf_write(sp->buf, (pj_uint16_t*)frame->buf, frame_size);
+    PJ_LOG(6, (THIS_FILE, "write in circ buf %u bytes", frame_size));
     pj_memcpy(&tmp_frame, frame, sizeof(pjmedia_frame));
     tmp_frame.buf = (void*)tmp_buf;
     sp->frames ++;
 
-    /* put everything saved into buffer */
-    while (pjmedia_circ_buf_get_len(sp->buf) > frame_size){
+    /* put everything saved into buffer
+    FIXME: wrong timestamps. Fortunately, wav writer don't care about
+    timestamps
+    */
+    while (pjmedia_circ_buf_get_len(sp->buf) >= frame_size){
         pjmedia_circ_buf_read(sp->buf, tmp_buf, frame_size);
+        PJ_LOG(6, (THIS_FILE, "read from circ buf %u bytes", frame_size));
         status = pjmedia_port_put_frame(sp->dn_port, &tmp_frame);
         if (status != PJ_SUCCESS)
             return status;

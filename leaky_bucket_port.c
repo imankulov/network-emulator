@@ -96,6 +96,8 @@ static pj_status_t lb_push_frame(struct leaky_bucket_port *lb)
     if (fst == NULL){
         return PJ_SUCCESS;
     }
+    PJ_LOG(6, (THIS_FILE, "push frame to dn port: sz=%u, ts=%llu",
+                fst->frame.size/sizeof(pj_uint16_t), fst->frame.timestamp.u64));
     status = pjmedia_port_put_frame(lb->dn_port, &fst->frame);
     if (status != PJ_SUCCESS)
         return status;
@@ -161,26 +163,30 @@ static pj_status_t lb_put_frame( pjmedia_port *this_port,
                     lb->base.info.clock_rate / lb->bits_per_second;
                 PJ_LOG(6, (THIS_FILE, "Sent delay: %u. Pack sz: %u. Samples: %u",
                             sent_delay, frame->size, lb->base.info.samples_per_frame));
-
             }
             /* update timestamps */
             if (lb->frames == 0){
-                lb->last_ts.u64 = item->frame.timestamp.u64;
+                lb->last_ts = item->frame.timestamp;
             } else if ( lb->last_ts.u64 + sent_delay < item->frame.timestamp.u64  ) {
-                lb->last_ts.u64 = item->frame.timestamp.u64;
+                lb->last_ts = item->frame.timestamp;
             } else {
                 lb->last_ts.u64 += sent_delay;
-                item->frame.timestamp.u64 = lb->last_ts.u64;
+                item->frame.timestamp = lb->last_ts;
             }
             buf = pj_pool_zalloc(lb->pool, frame->size);
             pj_memcpy(buf, frame->buf, frame->size);
             item->frame.buf = buf;
+            PJ_LOG(6, (THIS_FILE, "packet in buf: sz=%d ts=%llu",
+                item->frame.size/sizeof(pj_uint16_t), item->frame.timestamp.u64));
             lb->items++;
         } else {
             pj_bzero(item, sizeof(*item));
             item->frame.type = PJMEDIA_FRAME_TYPE_NONE;
+            PJ_LOG(6, (THIS_FILE, "bucket size %u exhausted, packet dropped",
+                lb->bucket_size));
         }
     } else {
+        PJ_LOG(6, (THIS_FILE, "received empty frame"));
     }
     /* put frame at the end of list or init an empty one */
     if (lb->last_item == NULL){
