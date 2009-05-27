@@ -327,6 +327,8 @@ int main(int argc, const char *argv[])
     CHECK (pjmedia_codec_mgr_get_default_param(cm, codec_info, &codec_param));
     codec_param.setting.vad = 0;
     codec_param.setting.cng = 0;
+    if (plc_mode != EM_PLC_SMART)
+        codec_param.setting.plc = 0;
 
     CHECK (pjmedia_codec_mgr_alloc_codec(cm, codec_info, &codec));
     CHECK (codec->op->init(codec, pool) );

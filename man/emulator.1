@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH emulator 1 "16 May 2009" "" ""
+.TH emulator 1 "27 May 2009" "" ""
 .SH NAME
 emulator \- utility intended to test how network losses affects speech quality in VoIP-based applications.
 .SH SYNOPSIS
@@ -132,6 +132,12 @@ are:
 \fIsmart\fR: PLC based on WSOLA algorithm or built-in speex PLC methods for Speex;
 .br
 \fInoice\fR: lost frames replaced with white noise.
+
+Note that "smart" (WSOLA-based) PLC implementation adds
+some zeros in the beginning of the frame (about half of samples per
+one packet) which may give some unwanted side effects as
+unreasonable PESQ decreasing is voice quality tests.
+
 .TP 
 \*(T<\fB\-o\fR\*(T>, \*(T<\fB\-\-output\-file\fR\*(T> \fIfile.wav\fR
 Specify output (degraded) file.

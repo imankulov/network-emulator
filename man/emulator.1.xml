@@ -213,6 +213,12 @@
                         <member><emphasis>smart</emphasis>: PLC based on WSOLA algorithm or built-in speex PLC methods for Speex;</member>
                         <member><emphasis>noice</emphasis>: lost frames replaced with white noise.</member>
                 </simplelist>
+            </para>
+            Note that &quot;smart&quot; (WSOLA-based) PLC implementation adds
+            some zeros in the beginning of the frame (about half of samples per
+            one packet) which may give some unwanted side effects as
+            unreasonable PESQ decreasing is voice quality tests.
+            <para>
             </para></listitem>
        </varlistentry>
        <varlistentry>
