@@ -12,6 +12,8 @@
 #define MAX_FPP 10
 #define THIS_FILE   "emulator.c"
 
+extern const pj_uint16_t pjmedia_codec_amrnb_bitrates[8];
+extern const pj_uint16_t pjmedia_codec_amrwb_bitrates[9];
 
 extern char *optarg;
 
@@ -23,6 +25,7 @@ double markov_p10;
 unsigned fpp;
 unsigned speex_quality;
 unsigned log_level;
+unsigned codec_bitrate;
 pj_bool_t list_codecs;
 em_plc_mode plc_mode;
 pj_size_t bucket_size;
@@ -43,12 +46,13 @@ enum {
 } option_name;
 
 
-char shortopts[] = "i:c:q:f:l:o:p:";
+char shortopts[] = "i:c:q:b:f:l:o:p:";
 const struct pj_getopt_option longopts[] = {
     /* encoder options */
     {"input-file", required_argument, NULL, 'i'},
     {"codec", required_argument, NULL, 'c'},
     {"speex-quality", required_argument, NULL, 'q'},
+    {"bitrate", required_argument, NULL, 'b'},
     {"fpp", required_argument, NULL, 'f'},
 
     /* channel options */
@@ -110,6 +114,7 @@ pj_status_t parse_args(int argc, const char *argv[])
     sent_delay = 16; /* 10 times more than needed */
     bits_per_second = 0;
     packets_per_second = 0;
+    codec_bitrate = 0;
     show_stats = PJ_FALSE;
 
     int ch;
@@ -127,6 +132,9 @@ pj_status_t parse_args(int argc, const char *argv[])
                     fprintf(stderr, "speex quality must be between 0 and 10\n");
                     goto err;
                 }
+                break;
+            case 'b':
+                codec_bitrate = atoi(optarg);
                 break;
             case 'f':
                 fpp = atoi(optarg);
@@ -233,12 +241,58 @@ pj_status_t parse_args(int argc, const char *argv[])
         return PJ_SUCCESS;
     if (!input_file || !output_file || !codec_name)
         goto err;
+    if (codec_bitrate > 0){
+        if (strncmp (codec_name, "AMR-WB", 6) == 0) {
+            pj_bool_t bitrate_found = PJ_FALSE;
+            int bitrates = 9;
+            for (i=0; i<bitrates; i++)
+                if (pjmedia_codec_amrwb_bitrates[i] == codec_bitrate)
+                    bitrate_found = PJ_TRUE;
+            if (!bitrate_found){
+                fprintf(stderr, "Wrong bitrate for AMR-WB: %d\n", codec_bitrate);
+                fprintf(stderr, "Acceptable values are: ");
+                for (i=0; i<bitrates; i++)
+                    fprintf(stderr, "%d ", pjmedia_codec_amrwb_bitrates[i]);
+                fprintf(stderr, "\n");
+                goto err;
+            }
+        } else if (strncmp (codec_name, "AMR", 3) == 0) {
+            pj_bool_t bitrate_found = PJ_FALSE;
+            int bitrates = 8;
+
+            for (i=0; i<bitrates; i++)
+                if (pjmedia_codec_amrnb_bitrates[i] == codec_bitrate)
+                    bitrate_found = PJ_TRUE;
+            if (!bitrate_found){
+                fprintf(stderr, "Wrong bitrate for AMR: %d\n", codec_bitrate);
+                fprintf(stderr, "Acceptable values are: ");
+                for (i=0; i<bitrates; i++)
+                    fprintf(stderr, "%d ", pjmedia_codec_amrnb_bitrates[i]);
+                fprintf(stderr, "\n");
+                goto err;
+            }
+        } else if (strncmp (codec_name, "G723", 4) == 0) {
+            if (codec_bitrate != 6300 && codec_bitrate != 5300){
+                fprintf(stderr, "Wrong bitrate for G.723: %d\n",
+                        codec_bitrate);
+                fprintf(stderr, "Acceptable values are: 5300, 6300\n");
+                goto err;
+            }
+        } else {
+            fprintf(stderr, "`bitrate' option is not acceptable "
+                    "for this codec\n");
+            goto err;
+        }
+    }
+
     return  PJ_SUCCESS;
 
 err:
     fprintf(stderr, "Usage: %s -i|--input-file <filename1.wav>\n", argv[0]);
     fprintf(stderr, "          -o|--output-file <filename2.wav>\n");
     fprintf(stderr, "          -c|--codec <CODEC_NAME>\n");
+    fprintf(stderr, "          -b|--bitrate <CODEC_BITRATE> \n"
+                    "               (see man for acceptable values)\n");
     fprintf(stderr, "          -l|--loss <lost_pct>\n");
     fprintf(stderr, "             --p00 <lost_pct>\n");
     fprintf(stderr, "             --p10 <lost_pct>\n");
@@ -329,6 +383,8 @@ int main(int argc, const char *argv[])
     codec_param.setting.cng = 0;
     if (plc_mode != EM_PLC_SMART)
         codec_param.setting.plc = 0;
+    if (codec_bitrate > 0)
+        codec_param.info.avg_bps = codec_bitrate;
 
     CHECK (pjmedia_codec_mgr_alloc_codec(cm, codec_info, &codec));
     CHECK (codec->op->init(codec, pool) );

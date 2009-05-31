@@ -43,6 +43,9 @@
         <group><option>-c</option><option>--codec</option></group><replaceable>codec_name</replaceable>
     </arg>
     <arg choice='plain'>
+        <group><option>-b</option><option>--bitrate</option></group><replaceable>codec_bitrate</replaceable>
+    </arg>
+    <arg choice='plain'>
         <group><option>-l</option><option>--loss</option></group><replaceable>lost_pct</replaceable>
     </arg>
     <arg choice='plain'>
@@ -154,6 +157,24 @@
             <term><option>-q</option>, <option>--speex-quality</option> <replaceable>0..10</replaceable></term>
             <listitem><para>
                     Specify speex encoder quality (obviously this option makes sence only with "speex" codec).
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>-b</option>, <option>--bitrate</option> <replaceable>codec_bitrate</replaceable></term>
+            <listitem><para>
+                    AMR, AMR-WB and G723 codecs define encoding mode using
+                    `bitrate' value. Below values are acceptable:
+                    <para>
+                    <simplelist>
+                        <member><emphasis>AMR</emphasis>: 4750, 5150, 5900,
+                            6700, 7400, 7950, 10200,  12200
+                        </member>
+                        <member><emphasis>AMR-WB</emphasis>: 6600, 8850,
+                                12650, 14250, 15850, 18250, 19850, 23050, 23850
+                        </member>
+                        <member><emphasis>G723</emphasis>: 5300, 6300</member>
+                    </simplelist>
+                    </para>
             </para></listitem>
         </varlistentry>
     </variablelist>

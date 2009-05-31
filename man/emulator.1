@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH emulator 1 "27 May 2009" "" ""
+.TH emulator 1 "31 May 2009" "" ""
 .SH NAME
 emulator \- utility intended to test how network losses affects speech quality in VoIP-based applications.
 .SH SYNOPSIS
@@ -28,6 +28,7 @@ emulator \- utility intended to test how network losses affects speech quality i
 [-i|--input-file] \fIinput_file.wav\fR
 [-o|--output-file] \fIoutput_file.wav\fR
 [-c|--codec] \fIcodec_name\fR
+[-b|--bitrate] \fIcodec_bitrate\fR
 [-l|--loss] \fIlost_pct\fR
 \fB--p00\fR \fIlost_pct\fR
 \fB--p10\fR \fIlost_pct\fR
@@ -96,6 +97,18 @@ Specify number of encoder frames per one RTP packet.
 .TP 
 \*(T<\fB\-q\fR\*(T>, \*(T<\fB\-\-speex\-quality\fR\*(T> \fI0..10\fR
 Specify speex encoder quality (obviously this option makes sence only with "speex" codec).
+.TP 
+\*(T<\fB\-b\fR\*(T>, \*(T<\fB\-\-bitrate\fR\*(T> \fIcodec_bitrate\fR
+AMR, AMR-WB and G723 codecs define encoding mode using
+`bitrate' value. Below values are acceptable:
+
+\fIAMR\fR: 4750, 5150, 5900,
+6700, 7400, 7950, 10200, 12200
+.br
+\fIAMR-WB\fR: 6600, 8850,
+12650, 14250, 15850, 18250, 19850, 23050, 23850
+.br
+\fIG723\fR: 5300, 6300
 .PP
 \fIChannel options\fR
 .TP 
