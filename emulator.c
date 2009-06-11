@@ -371,9 +371,11 @@ int main(int argc, const char *argv[])
         printf("Found %d codecs: \n", codec_count);
         for (i=0; i<codec_count; i++){
             pjmedia_codec_info ci = codec_info_set[i];
-            printf(" - %.*s/%u/%u\n",
+            printf(" - %.*s/%u/%u\t",
                     (int)ci.encoding_name.slen, ci.encoding_name.ptr,
                     ci.clock_rate, ci.channel_cnt);
+            CHECK (pjmedia_codec_mgr_get_default_param(cm, &ci, &codec_param));
+            printf(" avg bps=%u\n", codec_param.info.avg_bps);
         }
         exit (0);
     }
