@@ -331,6 +331,7 @@ int main(int argc, const char *argv[])
     pj_size_t buf_size = 0, real_buf_size = 0;
     int packet_lost = 0;
     pj_timestamp read_ts;
+    pj_uint32_t total_bytes = 0; /* transmitted throught network interface (raw) */
 
     status = parse_args(argc, argv);
     if (status != PJ_SUCCESS)
@@ -455,20 +456,30 @@ int main(int argc, const char *argv[])
                 frame.size/sizeof(pj_uint16_t), frame.timestamp.u64));
         CHECK(pjmedia_port_put_frame(markov_port, &frame));
         read_ts.u64 += play_file_port->info.samples_per_frame;
+        total_bytes += frame.size;
     }
     pjmedia_port_destroy(play_file_port);
     pjmedia_port_destroy(markov_port);
     pjmedia_port_destroy(leaky_bucket_port);
     if (show_stats){
         em_plc_statistics stats;
+        double sample_length = (double)read_ts.u64 / play_file_port->info.clock_rate;
         pjmedia_plc_port_get_statistics(plc_port, &stats);
         printf(
                 "Emulation statistics\n"
-                "  total packets sent: %u\n"
-                "        packets lost: %u\n"
-                "    packets received: %u\n"
-                "        loss percent: %.2f\n",
+                "          sample total length: %.2f seconds\n"
+                "           total packets sent: %u\n"
+                "                 packets lost: %u\n"
+                "             packets received: %u\n"
+                "           avg bits per frame: %u\n"
+                "             expected avg bps: %u\n"
+                "                 real avg bps: %.2f\n"
+                "                 loss percent: %.2f\n",
+            sample_length,
             stats.total, stats.lost, stats.received,
+            total_bytes * 8 / stats.total,
+            codec_param.info.avg_bps,
+            total_bytes * 8 / sample_length,
             100.0 * stats.lost/stats.total);
     }
     pjmedia_port_destroy(plc_port);
