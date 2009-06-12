@@ -64,6 +64,9 @@
         <group><option>-q</option><option>--speex-quality</option></group><replaceable>value</replaceable>
     </arg>
     <arg choice='plain'>
+        <group><option>-Q</option><option>--speex-vbr-quality</option></group><replaceable>value</replaceable>
+    </arg>
+    <arg choice='plain'>
         <option>--log-level</option><replaceable>level</replaceable>
     </arg>
     <arg choice='plain'>
@@ -160,11 +163,22 @@
             </para></listitem>
         </varlistentry>
         <varlistentry>
+            <term><option>-Q</option>, <option>--speex-vbr-quality</option> <replaceable>0..10</replaceable></term>
+            <listitem><para>
+                    Specify speex encoder quality in VBR quality (floating
+                    point number). Setting up this option causes the encoder to
+                    switch the Speex encoder in VBR mode with given quality.
+                    This option is applicable only if PJMEDIA has Speex VBR
+                    support.
+            </para></listitem>
+        </varlistentry>
+
+        <varlistentry>
             <term><option>-b</option>, <option>--bitrate</option> <replaceable>codec_bitrate</replaceable></term>
             <listitem><para>
                     AMR, AMR-WB and G723 codecs define encoding mode using
                     `bitrate' value. Below values are acceptable:
-                    <para>
+                    </para><para>
                     <simplelist>
                         <member><emphasis>AMR</emphasis>: 4750, 5150, 5900,
                             6700, 7400, 7950, 10200,  12200
@@ -174,7 +188,10 @@
                         </member>
                         <member><emphasis>G723</emphasis>: 5300, 6300</member>
                     </simplelist>
-                    </para>
+                    </para><para>
+                    If PJSIP has speex VBR/ABR support then
+                    <option>bitrate</option> option can accept any integer as
+                    value.
             </para></listitem>
         </varlistentry>
     </variablelist>
@@ -267,6 +284,12 @@
             <listitem><para>
                     Define log level verbosity. Zero means &quot;display
                     nothing&quot;, six means &quot;push detailed log on the stdout&quot;.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>--help</option></term>
+            <listitem><para>
+                    Display this man page.
             </para></listitem>
         </varlistentry>
 

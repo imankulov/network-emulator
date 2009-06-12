@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH emulator 1 "31 May 2009" "" ""
+.TH emulator 1 "12 June 2009" "" ""
 .SH NAME
 emulator \- utility intended to test how network losses affects speech quality in VoIP-based applications.
 .SH SYNOPSIS
@@ -35,6 +35,7 @@ emulator \- utility intended to test how network losses affects speech quality i
 [-f|--fpp] \fIframes_per_packet\fR
 [-p|--plc] \fIalgo\fR
 [-q|--speex-quality] \fIvalue\fR
+[-Q|--speex-vbr-quality] \fIvalue\fR
 \fB--log-level\fR \fIlevel\fR
 \fB--bucket-size\fR \fIsize\fR
 \fB--bucket-size\fR \fIsize\fR
@@ -98,6 +99,13 @@ Specify number of encoder frames per one RTP packet.
 \*(T<\fB\-q\fR\*(T>, \*(T<\fB\-\-speex\-quality\fR\*(T> \fI0..10\fR
 Specify speex encoder quality (obviously this option makes sence only with "speex" codec).
 .TP 
+\*(T<\fB\-Q\fR\*(T>, \*(T<\fB\-\-speex\-vbr\-quality\fR\*(T> \fI0..10\fR
+Specify speex encoder quality in VBR quality (floating
+point number). Setting up this option causes the encoder to
+switch the Speex encoder in VBR mode with given quality.
+This option is applicable only if PJMEDIA has Speex VBR
+support.
+.TP 
 \*(T<\fB\-b\fR\*(T>, \*(T<\fB\-\-bitrate\fR\*(T> \fIcodec_bitrate\fR
 AMR, AMR-WB and G723 codecs define encoding mode using
 `bitrate' value. Below values are acceptable:
@@ -109,6 +117,10 @@ AMR, AMR-WB and G723 codecs define encoding mode using
 12650, 14250, 15850, 18250, 19850, 23050, 23850
 .br
 \fIG723\fR: 5300, 6300
+
+If PJSIP has speex VBR/ABR support then
+\*(T<\fBbitrate\fR\*(T> option can accept any integer as
+value.
 .PP
 \fIChannel options\fR
 .TP 
@@ -165,6 +177,9 @@ during current emulation.
 \*(T<\fB\-\-log\-level\fR\*(T> 0..6
 Define log level verbosity. Zero means "display
 nothing", six means "push detailed log on the stdout".
+.TP 
+\*(T<\fB\-\-help\fR\*(T>
+Display this man page.
 .SH EXAMPLES
 Get the output signal in the "real channel" with short stats at the end of emulation
 .PP

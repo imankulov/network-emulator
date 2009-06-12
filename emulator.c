@@ -3,6 +3,8 @@
 #include <pjmedia.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <pjmedia-codec/speex.h>
 
 #include "markov_port.h"
 #include "plc_port.h"
@@ -24,6 +26,10 @@ double markov_p00;
 double markov_p10;
 unsigned fpp;
 unsigned speex_quality;
+#ifdef PJMEDIA_SPEEX_HAS_VBR
+float speex_vbr_quality;
+int speex_abr_bitrates[3];
+#endif
 unsigned log_level;
 unsigned codec_bitrate;
 pj_bool_t list_codecs;
@@ -45,13 +51,19 @@ enum {
     EM_LIST_CODECS,
 } option_name;
 
-
-char shortopts[] = "i:c:q:b:f:l:o:p:";
+#ifdef PJMEDIA_SPEEX_HAS_VBR
+char shortopts[] = "i:c:q:Q:b:f:l:o:p:h";
+#else
+char shortopts[] = "i:c:q:b:f:l:o:p:h";
+#endif
 const struct pj_getopt_option longopts[] = {
     /* encoder options */
     {"input-file", required_argument, NULL, 'i'},
     {"codec", required_argument, NULL, 'c'},
     {"speex-quality", required_argument, NULL, 'q'},
+#ifdef PJMEDIA_SPEEX_HAS_VBR
+    {"speex-vbr-quality", required_argument, NULL, 'Q'},
+#endif
     {"bitrate", required_argument, NULL, 'b'},
     {"fpp", required_argument, NULL, 'f'},
 
@@ -72,6 +84,7 @@ const struct pj_getopt_option longopts[] = {
     {"show-stats", no_argument, (int*)&option_name, (int)EM_SHOW_STATS},
     {"log-level", required_argument, (int*)&option_name, (int)EM_LOG_LEVEL},
     {"list-codecs", no_argument, (int*)&option_name, (int)EM_LIST_CODECS},
+    {"help", no_argument, NULL, 'h'},
 
     /* end */
     {NULL, 0, NULL, 0},
@@ -107,6 +120,12 @@ pj_status_t parse_args(int argc, const char *argv[])
     markov_p10 = 0;
     fpp = 1;
     speex_quality = 8;
+#ifdef PJMEDIA_SPEEX_HAS_VBR
+    speex_vbr_quality = -1;
+    speex_abr_bitrates[0] = 0;
+    speex_abr_bitrates[1] = 0;
+    speex_abr_bitrates[2] = 0;
+#endif
     log_level = 1;
     plc_mode = EM_PLC_EMPTY;
     list_codecs = PJ_FALSE;
@@ -133,6 +152,15 @@ pj_status_t parse_args(int argc, const char *argv[])
                     goto err;
                 }
                 break;
+#ifdef PJMEDIA_SPEEX_HAS_VBR
+            case 'Q':
+                speex_vbr_quality = atof(optarg);
+                if (speex_vbr_quality < 0 || speex_vbr_quality > 10){
+                    fprintf(stderr, "speex VBR quality must be between 0 and 10\n");
+                    goto err;
+                }
+                break;
+#endif
             case 'b':
                 codec_bitrate = atoi(optarg);
                 break;
@@ -164,6 +192,11 @@ pj_status_t parse_args(int argc, const char *argv[])
                         goto err;
                 }
                 break;
+            case 'h':
+                if (execlp("man", "man", "emulator", NULL)) {
+                    fprintf(stderr, "Cannot display emulator man page\n");
+                    goto err;
+                }
             case 0:
                 switch (option_name) {
                     case EM_P00:
@@ -278,6 +311,12 @@ pj_status_t parse_args(int argc, const char *argv[])
                 fprintf(stderr, "Acceptable values are: 5300, 6300\n");
                 goto err;
             }
+#ifdef PJMEDIA_SPEEX_HAS_VBR
+        } else if (strncmp (codec_name, "speex", 5) == 0) {
+            speex_abr_bitrates[0] = codec_bitrate;
+            speex_abr_bitrates[1] = codec_bitrate;
+            speex_abr_bitrates[2] = codec_bitrate;
+#endif
         } else {
             fprintf(stderr, "`bitrate' option is not acceptable "
                     "for this codec\n");
@@ -299,6 +338,9 @@ err:
     fprintf(stderr, "          -f|--fpp <fpp>\n");
     fprintf(stderr, "          -p|--plc empty|repeat|smart|noise\n");
     fprintf(stderr, "          -q|--speex-quality <value>\n");
+#ifdef PJMEDIA_SPEEX_HAS_VBR
+    fprintf(stderr, "          -Q|--speex-vbr-quality <value>\n");
+#endif
     fprintf(stderr, "             --log-level <0..6>\n");
     fprintf(stderr, "             --bucket-size <n>\n");
     fprintf(stderr, "             --sent-delay <n>\n");
@@ -351,8 +393,14 @@ int main(int argc, const char *argv[])
     CHECK (pjmedia_codec_ilbc_init(med_endpt, 30));
 #endif
 #if PJMEDIA_HAS_SPEEX_CODEC
+    #ifdef PJMEDIA_SPEEX_HAS_VBR
+    CHECK (pjmedia_codec_speex_vbr_init(med_endpt, 0, speex_quality,
+            PJMEDIA_CODEC_SPEEX_DEFAULT_COMPLEXITY, speex_vbr_quality,
+            speex_abr_bitrates));
+    #else
     CHECK (pjmedia_codec_speex_init(med_endpt, 0, speex_quality,
             PJMEDIA_CODEC_SPEEX_DEFAULT_COMPLEXITY));
+    #endif
 #endif
 #if PJMEDIA_HAS_G722_CODEC
     CHECK (pjmedia_codec_g722_init(med_endpt));
