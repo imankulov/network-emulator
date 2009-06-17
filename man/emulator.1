@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH emulator 1 "12 June 2009" "" ""
+.TH emulator 1 "17 June 2009" "" ""
 .SH NAME
 emulator \- utility intended to test how network losses affects speech quality in VoIP-based applications.
 .SH SYNOPSIS
@@ -32,6 +32,7 @@ emulator \- utility intended to test how network losses affects speech quality i
 [-l|--loss] \fIlost_pct\fR
 \fB--p00\fR \fIlost_pct\fR
 \fB--p10\fR \fIlost_pct\fR
+\fB--burst-ratio\fR \fIvalue\fR
 [-f|--fpp] \fIframes_per_packet\fR
 [-p|--plc] \fIalgo\fR
 [-q|--speex-quality] \fIvalue\fR
@@ -70,17 +71,25 @@ the output file.
 .PP
 A few words about channel emulator algorithms. Channel consists of two
 blocks: \fIrandom loss emulator\fR and
-\fIbandwidth limitation emulator\fR. The first can
-emulate random uncorrelated losses with \*(T<\fB\-l\fR\*(T> option or
-losses modelled with markov chain. With the markov chain it's nessesary
-to define two options: \*(T<\fB\-\-p10\fR\*(T> which specifies packet
-loss probability (in percent) in the case when previous packet has not
-be lost, and \*(T<\fB\-\-p00\fR\*(T> which specifies the same in the
-case when previous packet has been lost as well. Bandwith limitation is
-emulated with leaky bucket algorithm. Implementation receives two
-options: \*(T<\fB\-\-bucket\-size\fR\*(T> in packets and
-\*(T<\fB\-\-bandwidth\fR\*(T> in bits per second (bps) or packets per
-second (pps).
+\fIbandwidth limitation emulator\fR. The random loss
+emulator can emulate random uncorrelated losses with
+\*(T<\fB\-l\fR\*(T> option or losses modelled with markov chain. 
+.PP
+The markov chain can be defined by two alternative means. The first one
+is to to define two options: \*(T<\fB\-\-p10\fR\*(T> which specifies
+packet loss probability (in percent) in the case when previous packet
+has not be lost, and \*(T<\fB\-\-p00\fR\*(T> which specifies the same in
+the case when previous packet has been lost as well. The second variant
+consist in usage \*(T<\fB\-l\fR\*(T> option along with
+\*(T<\fB\-\-burst\-ratio\fR\*(T>. Burst ratio is defined as ratio of the
+average length of observed bursts in an arrival sequence to the average
+length of bursts expected for the network under random loss with no
+correlation between packets.
+.PP
+Bandwith limitation is emulated with leaky bucket algorithm.
+Implementation receives two options: \*(T<\fB\-\-bucket\-size\fR\*(T> in
+packets and \*(T<\fB\-\-bandwidth\fR\*(T> in bits per second (bps) or
+packets per second (pps).
 .SH OPTIONS
 \fIEncoder options\fR
 .TP 
@@ -132,6 +141,9 @@ Specify p00 parameter of the markov chain loss model (floating number from 0 to 
 .TP 
 \*(T<\fB\-\-p10\fR\*(T> \fIloss_pct\fR
 Specify p10 parameter of the markov chain loss model (floating number from 0 to 100). Default value is 0.
+.TP 
+\*(T<\fB\-\-burst\-ratio\fR\*(T> \fIratio\fR
+Specify burst ratio of the markov chain loss model. Used along with \*(T<\fB\-\-loss\fR\*(T> option.
 .TP 
 \*(T<\fB\-\-bucket\-size\fR\*(T> \fIN\fR
 Specify bucket size in the leaky bucket traffic shaping

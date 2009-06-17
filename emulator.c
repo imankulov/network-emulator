@@ -13,6 +13,8 @@
 
 #define MAX_FPP 10
 #define THIS_FILE   "emulator.c"
+#define em_set(x)   ((x)>=0)
+#define em_unset(x) ((x)<0)
 
 extern const pj_uint16_t pjmedia_codec_amrnb_bitrates[8];
 extern const pj_uint16_t pjmedia_codec_amrwb_bitrates[9];
@@ -24,6 +26,8 @@ const char *output_file;
 const char *codec_name;
 double markov_p00;
 double markov_p10;
+double lost_pct;
+double burst_ratio;
 unsigned fpp;
 unsigned speex_quality;
 #ifdef PJMEDIA_SPEEX_HAS_VBR
@@ -44,6 +48,7 @@ enum {
     EM_P00 = 1,
     EM_P10,
     EM_BUCKET_SIZE,
+    EM_BURST_RATIO,
     EM_BANDWIDTH,
     EM_SENT_DELAY,
     EM_SHOW_STATS,
@@ -72,6 +77,7 @@ const struct pj_getopt_option longopts[] = {
     {"p00", required_argument, (int*)&option_name, (int)EM_P00},
     {"p10", required_argument, (int*)&option_name, (int)EM_P10},
     {"bucket-size", required_argument, (int*)&option_name, (int)EM_BUCKET_SIZE},
+    {"burst-ratio", required_argument, (int*)&option_name, (int)EM_BURST_RATIO},
     {"bw", required_argument, (int*)&option_name, (int)EM_BANDWIDTH},
     {"bandwidth", required_argument, (int*)&option_name, (int)EM_BANDWIDTH},
     {"sent-delay", required_argument, (int*)&option_name, (int)EM_SENT_DELAY},
@@ -116,8 +122,11 @@ pj_status_t parse_args(int argc, const char *argv[])
     input_file = NULL;
     output_file = NULL;
     codec_name = NULL;
-    markov_p00 = 0;
-    markov_p10 = 0;
+    markov_p00 = -1;
+    markov_p10 = -1;
+    lost_pct = -1;
+    burst_ratio = -1;
+
     fpp = 1;
     speex_quality = 8;
 #ifdef PJMEDIA_SPEEX_HAS_VBR
@@ -172,9 +181,9 @@ pj_status_t parse_args(int argc, const char *argv[])
                 }
                 break;
             case 'l':
-                markov_p10 = markov_p00 = atof(optarg);
-                if (markov_p00 < 0 || markov_p00 > 100) {
-                    fprintf(stderr, "loss rate must be between 0 and 100");
+                lost_pct = atof(optarg);
+                if (lost_pct < 0 || lost_pct > 100) {
+                    fprintf(stderr, "loss percent must be between 0 and 100");
                     goto err;
                 }
                 break;
@@ -210,6 +219,13 @@ pj_status_t parse_args(int argc, const char *argv[])
                         markov_p10 = atof(optarg);
                         if (markov_p10 < 0 || markov_p10 > 100) {
                             fprintf(stderr, "loss rate must be between 0 and 100");
+                            goto err;
+                        }
+                        break;
+                    case EM_BURST_RATIO:
+                        burst_ratio = atof(optarg);
+                        if (burst_ratio <= 0) {
+                            fprintf(stderr, "burst ratio be greater than 0");
                             goto err;
                         }
                         break;
@@ -323,6 +339,39 @@ pj_status_t parse_args(int argc, const char *argv[])
             goto err;
         }
     }
+    /* check and set up loss rates (given from G.107 p.9) */
+    if (em_set(markov_p10) && em_set(markov_p00)){
+        if (em_set(lost_pct) || em_set(burst_ratio)){
+            fprintf(stderr, "Incompatible p.. variables. "
+                "You must set up one or two\n");
+            goto err;
+        }
+    } else if (em_set(lost_pct)) {
+        if (em_unset(burst_ratio)){
+            markov_p10 = markov_p00 = lost_pct;
+        } else if (em_set(markov_p00) || em_set(markov_p10)) {
+            fprintf(stderr, "Incompatible p.. variables. "
+                "You must set up one or two\n");
+            goto err;
+        } else {
+            markov_p10 = lost_pct / burst_ratio;
+            /*
+            markov_p00 = 100 * (1.0 - markov_p10/lost_pct) + markov_p10;
+            markov_p00 = 100 - 100/burst_ratio + lost_pct/burst_ratio;
+            */
+            markov_p00 = 100.0 - (100.0 - lost_pct)/burst_ratio;
+        }
+    } else if ( em_unset(markov_p10) && em_unset(markov_p00) &&
+            em_unset(lost_pct) && em_unset(burst_ratio) ) {
+        markov_p10 = markov_p00 = 0.00;
+    } else {
+        fprintf(stderr, "Incompatible p.. variables. "
+                "You must set up one or two\n");
+        goto err;
+    }
+    PJ_LOG(5, (THIS_FILE, "channel loss properties: p00=%.2f, p10=%.2f "
+                "lost_pct=%.2f burst=%.2f", markov_p00, markov_p10, lost_pct,
+                burst_ratio));
 
     return  PJ_SUCCESS;
 
@@ -335,6 +384,7 @@ err:
     fprintf(stderr, "          -l|--loss <lost_pct>\n");
     fprintf(stderr, "             --p00 <lost_pct>\n");
     fprintf(stderr, "             --p10 <lost_pct>\n");
+    fprintf(stderr, "             --burst-ratio <ratio>\n");
     fprintf(stderr, "          -f|--fpp <fpp>\n");
     fprintf(stderr, "          -p|--plc empty|repeat|smart|noise\n");
     fprintf(stderr, "          -q|--speex-quality <value>\n");

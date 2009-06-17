@@ -55,6 +55,9 @@
         <option>--p10</option><replaceable>lost_pct</replaceable>
     </arg>
     <arg choice='plain'>
+        <option>--burst-ratio</option><replaceable>value</replaceable>
+    </arg>
+    <arg choice='plain'>
         <group><option>-f</option><option>--fpp</option></group><replaceable>frames_per_packet</replaceable>
     </arg>
     <arg choice='plain'>
@@ -117,17 +120,27 @@
     <para>
         A few words about channel emulator algorithms. Channel consists of two
         blocks: <emphasis>random loss emulator</emphasis> and
-        <emphasis>bandwidth limitation emulator</emphasis>. The first can
-        emulate random uncorrelated losses with <option>-l</option> option or
-        losses modelled with markov chain. With the markov chain it's nessesary
-        to define two options: <option>--p10</option> which specifies packet
-        loss probability  (in percent) in the case when previous packet has not
-        be lost, and <option>--p00</option> which specifies the same in the
-        case when previous packet has been lost as well. Bandwith limitation is
-        emulated with leaky bucket algorithm. Implementation receives two
-        options: <option>--bucket-size</option> in packets and
-        <option>--bandwidth</option> in bits per second (bps) or packets per
-        second (pps).
+        <emphasis>bandwidth limitation emulator</emphasis>. The random loss
+        emulator can emulate random uncorrelated losses with
+        <option>-l</option> option or losses modelled with markov chain. 
+     </para>
+     <para>
+        The markov chain can be defined by two alternative means. The first one
+        is to to define two options: <option>--p10</option> which specifies
+        packet loss probability  (in percent) in the case when previous packet
+        has not be lost, and <option>--p00</option> which specifies the same in
+        the case when previous packet has been lost as well. The second variant
+        consist in usage <option>-l</option> option along with
+        <option>--burst-ratio</option>. Burst ratio is defined as ratio of the
+        average length of observed bursts in an arrival sequence to the average
+        length of bursts expected for the network under random loss with no
+        correlation between packets.
+     </para>
+     <para>
+        Bandwith limitation is emulated with leaky bucket algorithm.
+        Implementation receives two options: <option>--bucket-size</option> in
+        packets and <option>--bandwidth</option> in bits per second (bps) or
+        packets per second (pps).
     </para>
 </refsect1>
 
@@ -215,6 +228,12 @@
             <term><option>--p10</option> <replaceable>loss_pct</replaceable></term>
             <listitem><para>
                     Specify p10 parameter of the markov chain loss model (floating number from 0 to 100). Default value is 0.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>--burst-ratio</option> <replaceable>ratio</replaceable></term>
+            <listitem><para>
+                    Specify burst ratio of the markov chain loss model. Used along with <option>--loss</option> option.
             </para></listitem>
         </varlistentry>
         <varlistentry>
