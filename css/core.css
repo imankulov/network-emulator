@@ -1,0 +1,17 @@
+/* Page colors are picked up with colr.org web service from the picture 
+ * http://farm1.static.flickr.com/2/1703693_0412c29a4f.jpg 
+ */
+body { background-color: #988895; }
+hr { background-color: #988895; }
+h1 {color: #473737; }
+p {	color: #272027; }
+a { color: #586434; }
+
+.container { background-color: #E5DBDA; margin-top: 20px;}
+.container .header h1 { padding: 20px 0 0 20px; margin-bottom: -10px; }
+.container .header a { color: none; text-decoration: none;  }
+.container .top-menu p {margin: 0 20px 0 0; text-align: right; padding: 0; }
+.container .top-menu a { color: none; text-decoration: none; }
+.container .left-menu ul { list-style-type: none;}
+.container .footer { text-align: center; }
+_div {border: 1px solid black ;}
