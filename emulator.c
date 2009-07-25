@@ -34,6 +34,8 @@ unsigned speex_quality;
 float speex_vbr_quality;
 int speex_abr_bitrates[3];
 #endif
+char *log_file;
+FILE *log_fd;
 unsigned log_level;
 unsigned codec_bitrate;
 pj_bool_t list_codecs;
@@ -52,6 +54,7 @@ enum {
     EM_BANDWIDTH,
     EM_SENT_DELAY,
     EM_SHOW_STATS,
+    EM_LOG,
     EM_LOG_LEVEL,
     EM_LIST_CODECS,
 } option_name;
@@ -88,6 +91,7 @@ const struct pj_getopt_option longopts[] = {
 
     /* miscellaneous options */
     {"show-stats", no_argument, (int*)&option_name, (int)EM_SHOW_STATS},
+    {"log", required_argument, (int*)&option_name, (int)EM_LOG},
     {"log-level", required_argument, (int*)&option_name, (int)EM_LOG_LEVEL},
     {"list-codecs", no_argument, (int*)&option_name, (int)EM_LIST_CODECS},
     {"help", no_argument, NULL, 'h'},
@@ -97,6 +101,14 @@ const struct pj_getopt_option longopts[] = {
 };
 
 
+
+static void log_tofile(int level, const char *data, int len)
+{
+    PJ_CHECK_STACK();
+    PJ_UNUSED_ARG(level);
+    PJ_UNUSED_ARG(len);
+    fprintf(log_fd, "%s", data);
+}
 
 static void err(const char *op, pj_status_t status)
 {
@@ -136,6 +148,7 @@ pj_status_t parse_args(int argc, const char *argv[])
     speex_abr_bitrates[2] = 0;
 #endif
     log_level = 1;
+    log_file = NULL;
     plc_mode = EM_PLC_EMPTY;
     list_codecs = PJ_FALSE;
     bucket_size = 50; /* 1s */
@@ -265,6 +278,9 @@ pj_status_t parse_args(int argc, const char *argv[])
                     case EM_SHOW_STATS:
                         show_stats = PJ_TRUE;
                         break;
+                    case EM_LOG:
+                        log_file = strdup(optarg);
+                        break;
                     case EM_LOG_LEVEL:
                         log_level = atoi(optarg);
                         if (log_level < 0 || log_level > 6){
@@ -290,6 +306,18 @@ pj_status_t parse_args(int argc, const char *argv[])
         return PJ_SUCCESS;
     if (!input_file || !output_file || !codec_name)
         goto err;
+    /* set up logging facility */
+    if (log_file) {
+        log_fd = fopen(log_file, "a");
+        if (!log_fd){
+            fprintf(stderr, "Can't open log file %s\n", log_file);
+            return 2;
+        }
+    } else {
+        log_fd = stderr;
+    }
+    pj_log_set_log_func(&log_tofile);
+    /* check and set up codec bitrate */
     if (codec_bitrate > 0){
         if (strncmp (codec_name, "AMR-WB", 6) == 0) {
             pj_bool_t bitrate_found = PJ_FALSE;
@@ -391,6 +419,7 @@ err:
 #ifdef PJMEDIA_SPEEX_HAS_VBR
     fprintf(stderr, "          -Q|--speex-vbr-quality <value>\n");
 #endif
+    fprintf(stderr, "             --log <filename.log>\n");
     fprintf(stderr, "             --log-level <0..6>\n");
     fprintf(stderr, "             --bucket-size <n>\n");
     fprintf(stderr, "             --sent-delay <n>\n");
@@ -585,4 +614,7 @@ int main(int argc, const char *argv[])
     pjmedia_port_destroy(plc_port);
     pjmedia_port_destroy(silence_port);
     pjmedia_port_destroy(rec_file_port);
+    if (log_fd != stderr){
+        fclose(log_fd);
+    }
 }

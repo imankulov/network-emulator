@@ -70,6 +70,9 @@
         <group><option>-Q</option><option>--speex-vbr-quality</option></group><replaceable>value</replaceable>
     </arg>
     <arg choice='plain'>
+        <option>--log</option><replaceable>filename</replaceable>
+    </arg>
+    <arg choice='plain'>
         <option>--log-level</option><replaceable>level</replaceable>
     </arg>
     <arg choice='plain'>
@@ -271,11 +274,11 @@
                         <member><emphasis>noice</emphasis>: lost frames replaced with white noise.</member>
                 </simplelist>
             </para>
+            <para>
             Note that &quot;smart&quot; (WSOLA-based) PLC implementation adds
             some zeros in the beginning of the frame (about half of samples per
             one packet) which may give some unwanted side effects as
             unreasonable PESQ decreasing is voice quality tests.
-            <para>
             </para></listitem>
        </varlistentry>
        <varlistentry>
@@ -296,6 +299,14 @@
                     Display short emulation statistics: total packets sent,
                     packets lost, packets received and the rate of lost packets
                     during current emulation.
+            </para></listitem>
+        </varlistentry>
+        <varlistentry>
+            <term><option>--log</option> filename</term>
+            <listitem><para>
+                    Define output file for the log facility. Default behaviour
+                    is to dump logs to the stderr. If the <term>filename</term>
+                    is given, append the messages into this file.
             </para></listitem>
         </varlistentry>
         <varlistentry>
