@@ -319,7 +319,10 @@ pj_status_t parse_args(int argc, const char *argv[])
     pj_log_set_log_func(&log_tofile);
     /* check and set up codec bitrate */
     if (codec_bitrate > 0){
-        if (strncmp (codec_name, "AMR-WB", 6) == 0) {
+
+        if (0) {
+#if PJMEDIA_HAS_INTEL_IPP && PJMEDIA_HAS_INTEL_IPP_CODEC_AMRWB
+        } else if (strncmp (codec_name, "AMR-WB", 6) == 0) {
             pj_bool_t bitrate_found = PJ_FALSE;
             int bitrates = 9;
             for (i=0; i<bitrates; i++)
@@ -333,6 +336,8 @@ pj_status_t parse_args(int argc, const char *argv[])
                 fprintf(stderr, "\n");
                 goto err;
             }
+#endif
+#if PJMEDIA_HAS_INTEL_IPP && PJMEDIA_HAS_INTEL_IPP_CODEC_AMR
         } else if (strncmp (codec_name, "AMR", 3) == 0) {
             pj_bool_t bitrate_found = PJ_FALSE;
             int bitrates = 8;
@@ -348,6 +353,8 @@ pj_status_t parse_args(int argc, const char *argv[])
                 fprintf(stderr, "\n");
                 goto err;
             }
+#endif
+#if PJMEDIA_HAS_INTEL_IPP && PJMEDIA_HAS_INTEL_IPP_CODEC_G723_1
         } else if (strncmp (codec_name, "G723", 4) == 0) {
             if (codec_bitrate != 6300 && codec_bitrate != 5300){
                 fprintf(stderr, "Wrong bitrate for G.723: %d\n",
@@ -355,6 +362,7 @@ pj_status_t parse_args(int argc, const char *argv[])
                 fprintf(stderr, "Acceptable values are: 5300, 6300\n");
                 goto err;
             }
+#endif
 #ifdef PJMEDIA_SPEEX_HAS_VBR
         } else if (strncmp (codec_name, "speex", 5) == 0) {
             speex_abr_bitrates[0] = codec_bitrate;
