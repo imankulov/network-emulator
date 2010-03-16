@@ -107,18 +107,18 @@
 <refsect1><title>DESCRIPTION</title>
     <para>
         <emphasis>&E;</emphasis> is a simple utility intended to test
-        how network losses affects speech quality in VoIP-based applications.
+        how network losses affect speech quality in VoIP-based applications.
         Experimenter can set up encoder, channel and decoder options, such as
         codec type, loss rate, bandwith and one of the packet loss suppression
         algorithm on the receiver side.
     </para>
     <para>
-        &E; consists of three parts. Encoder reads data from input file,
-        encodes it with selected codec, packs data into RTP-packets. Channel
-        obtains packets from encoder, emulates losses and delays and send
-        packets to the next party.  Decoder receives data from channel,
-        performs packet loss concealment and decoding, then stores data into
-        the output file.
+        &E; consists of three parts: encoder, channer and decoder. Encoder
+        reads data from the input file, encodes them with selected codec, packs
+        data into RTP-packets. Channel obtains packets from encoder, emulates
+        losses and delays and sends packets to the next party.  Decoder
+        receives data from channel, performs packet loss concealment and
+        decoding, then stores data into the output file.
     </para>
     <para>
         A few words about channel emulator algorithms. Channel consists of two
@@ -130,14 +130,21 @@
      <para>
         The markov chain can be defined by two alternative means. The first one
         is to to define two options: <option>--p10</option> which specifies
-        packet loss probability  (in percent) in the case when previous packet
+        packet loss probability (in percent) in the case when previous packet
         has not be lost, and <option>--p00</option> which specifies the same in
         the case when previous packet has been lost as well. The second variant
         consist in usage <option>-l</option> option along with
         <option>--burst-ratio</option>. Burst ratio is defined as ratio of the
         average length of observed bursts in an arrival sequence to the average
         length of bursts expected for the network under random loss with no
-        correlation between packets.
+        correlation between packets. Formulae of conversion between pairs of
+        (<option>--p00</option>, <option>--p10</option>) and
+        (<option>-l</option>, <option>--burst-ratio</option>) are borrowed from
+        G.107 recommendation (3-30). You should note that <option>-l</option>
+        corresponds to <option>Ppl</option> variable,
+        <option>--burst-ratio</option> corresponds to <option>Bpl</option>,
+        <option>--p10</option> is the same as <option>p</option> variable and
+        <option>--p00</option> stands for <option>1-q</option>.
      </para>
      <para>
         Bandwith limitation is emulated with leaky bucket algorithm.
@@ -250,10 +257,10 @@
            <term><option>--bw</option>, <option>--bandwidth</option> <replaceable>XXbps|YYpps</replaceable></term>
             <listitem><para>
                     Specify bandwidth in the leaky bucket traffic shaping
-                    model. Note that full size of the one RTP packet consists
-                    of these addends: IP header size (20 bytes), UDP header
-                    size (8 bytes), RTP header size (12 bytes) and payload size
-                    itself.
+                    model. Note that the full size of the one RTP packet
+                    consists of these addends: IP header size (20 bytes), UDP
+                    header size (8 bytes), RTP header size (12 bytes) and
+                    payload size itself.
             </para></listitem>
         </varlistentry>
      </variablelist>
@@ -268,17 +275,18 @@
                     Specify packet loss concealment algorithm. Allowed values
                     are:</para>
                 <para><simplelist>
-                        <member><emphasis>empty</emphasis>: lost frames replaced with empty ones;</member>
-                        <member><emphasis>repeat</emphasis>: lost frames replaced with last received frame;</member>
+                        <member><emphasis>empty</emphasis>: lost frames are replaced with empty ones;</member>
+                        <member><emphasis>repeat</emphasis>: lost frames are replaced with last received frame;</member>
                         <member><emphasis>smart</emphasis>: PLC based on WSOLA algorithm or built-in speex PLC methods for Speex;</member>
-                        <member><emphasis>noice</emphasis>: lost frames replaced with white noise.</member>
+                        <member><emphasis>noice</emphasis>: lost frames are replaced with white noise.</member>
                 </simplelist>
             </para>
             <para>
-            Note that &quot;smart&quot; (WSOLA-based) PLC implementation adds
-            some zeros in the beginning of the frame (about half of samples per
-            one packet) which may give some unwanted side effects as
-            unreasonable PESQ decreasing is voice quality tests.
+            Note that in early versions of the PJSIP library &quot;smart&quot;
+            (WSOLA-based) PLC implementation adds some zeros in the beginning
+            of the frame (about half of samples per one packet) which may give
+            some unwanted side effects as unreasonable PESQ decreasing is voice
+            quality tests.
             </para></listitem>
        </varlistentry>
        <varlistentry>

@@ -238,7 +238,7 @@ pj_status_t parse_args(int argc, const char *argv[])
                     case EM_BURST_RATIO:
                         burst_ratio = atof(optarg);
                         if (burst_ratio <= 0) {
-                            fprintf(stderr, "burst ratio be greater than 0");
+                            fprintf(stderr, "burst ratio must be greater than 0");
                             goto err;
                         }
                         break;

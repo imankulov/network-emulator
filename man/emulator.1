@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH emulator 1 "25 July 2009" "" ""
+.TH emulator 1 "16 March 2010" "" ""
 .SH NAME
 emulator \- utility intended to test how network losses affects speech quality in VoIP-based applications.
 .SH SYNOPSIS
@@ -58,17 +58,17 @@ emulator \- utility intended to test how network losses affects speech quality i
 'hy
 .SH DESCRIPTION
 \fIemulator\fR is a simple utility intended to test
-how network losses affects speech quality in VoIP-based applications.
+how network losses affect speech quality in VoIP-based applications.
 Experimenter can set up encoder, channel and decoder options, such as
 codec type, loss rate, bandwith and one of the packet loss suppression
 algorithm on the receiver side.
 .PP
-emulator consists of three parts. Encoder reads data from input file,
-encodes it with selected codec, packs data into RTP-packets. Channel
-obtains packets from encoder, emulates losses and delays and send
-packets to the next party. Decoder receives data from channel,
-performs packet loss concealment and decoding, then stores data into
-the output file.
+emulator consists of three parts: encoder, channer and decoder. Encoder
+reads data from the input file, encodes them with selected codec, packs
+data into RTP-packets. Channel obtains packets from encoder, emulates
+losses and delays and sends packets to the next party. Decoder
+receives data from channel, performs packet loss concealment and
+decoding, then stores data into the output file.
 .PP
 A few words about channel emulator algorithms. Channel consists of two
 blocks: \fIrandom loss emulator\fR and
@@ -85,7 +85,14 @@ consist in usage \*(T<\fB\-l\fR\*(T> option along with
 \*(T<\fB\-\-burst\-ratio\fR\*(T>. Burst ratio is defined as ratio of the
 average length of observed bursts in an arrival sequence to the average
 length of bursts expected for the network under random loss with no
-correlation between packets.
+correlation between packets. Formulae of conversion between pairs of
+(\*(T<\fB\-\-p00\fR\*(T>, \*(T<\fB\-\-p10\fR\*(T>) and
+(\*(T<\fB\-l\fR\*(T>, \*(T<\fB\-\-burst\-ratio\fR\*(T>) are borrowed from
+G.107 recommendation (3-30). You should note that \*(T<\fB\-l\fR\*(T>
+corresponds to \*(T<\fBPpl\fR\*(T> variable,
+\*(T<\fB\-\-burst\-ratio\fR\*(T> corresponds to \*(T<\fBBpl\fR\*(T>,
+\*(T<\fB\-\-p10\fR\*(T> is the same as \*(T<\fBp\fR\*(T> variable and
+\*(T<\fB\-\-p00\fR\*(T> stands for \*(T<\fB1\-q\fR\*(T>.
 .PP
 Bandwith limitation is emulated with leaky bucket algorithm.
 Implementation receives two options: \*(T<\fB\-\-bucket\-size\fR\*(T> in
@@ -152,10 +159,10 @@ model.
 .TP 
 \*(T<\fB\-\-bw\fR\*(T>, \*(T<\fB\-\-bandwidth\fR\*(T> \fIXXbps|YYpps\fR
 Specify bandwidth in the leaky bucket traffic shaping
-model. Note that full size of the one RTP packet consists
-of these addends: IP header size (20 bytes), UDP header
-size (8 bytes), RTP header size (12 bytes) and payload size
-itself.
+model. Note that the full size of the one RTP packet
+consists of these addends: IP header size (20 bytes), UDP
+header size (8 bytes), RTP header size (12 bytes) and
+payload size itself.
 .PP
 \fIDecoder options\fR
 .TP 
@@ -163,18 +170,19 @@ itself.
 Specify packet loss concealment algorithm. Allowed values
 are:
 
-\fIempty\fR: lost frames replaced with empty ones;
+\fIempty\fR: lost frames are replaced with empty ones;
 .br
-\fIrepeat\fR: lost frames replaced with last received frame;
+\fIrepeat\fR: lost frames are replaced with last received frame;
 .br
 \fIsmart\fR: PLC based on WSOLA algorithm or built-in speex PLC methods for Speex;
 .br
-\fInoice\fR: lost frames replaced with white noise.
+\fInoice\fR: lost frames are replaced with white noise.
 
-Note that "smart" (WSOLA-based) PLC implementation adds
-some zeros in the beginning of the frame (about half of samples per
-one packet) which may give some unwanted side effects as
-unreasonable PESQ decreasing is voice quality tests.
+Note that in early versions of the PJSIP library "smart"
+(WSOLA-based) PLC implementation adds some zeros in the beginning
+of the frame (about half of samples per one packet) which may give
+some unwanted side effects as unreasonable PESQ decreasing is voice
+quality tests.
 .TP 
 \*(T<\fB\-o\fR\*(T>, \*(T<\fB\-\-output\-file\fR\*(T> \fIfile.wav\fR
 Specify output (degraded) file.
