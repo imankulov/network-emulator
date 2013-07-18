@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include <pjmedia-codec/speex.h>
 
 #include "markov_port.h"
@@ -467,6 +468,7 @@ int main(int argc, const char *argv[])
         return status;
     pj_log_set_level(log_level);
     status = pj_init();
+    pj_srand((unsigned int)time());
     pj_caching_pool_init(&cp, &pj_pool_factory_default_policy, 0);
     pool = pj_pool_create(&cp.factory, "emulator", 4000, 4000, NULL);
     CHECK (pjmedia_endpt_create(&cp.factory, NULL, 1, &med_endpt));
